@@ -1,11 +1,11 @@
 
-from declarative_floorplan import Floorplan, Vertex, Wall, Door, Window, HorizontalConstraint, VerticalConstraint, CENTERED
+from declarative_floorplan import Floorplan, Vertex, Wall, Door, Window, HC, VC, CENTERED
 
 with Floorplan("A basic room") as fp:
-    lower_wall_horizontal_constraint = HorizontalConstraint(50)
-    upper_wall_horizontal_constraint = HorizontalConstraint(100)
-    left_wall_vertical_constraint = VerticalConstraint(75)
-    right_wall_vertical_constraint = VerticalConstraint(125)
+    lower_wall_horizontal_constraint = HC(50)
+    upper_wall_horizontal_constraint = HC(100)
+    left_wall_vertical_constraint = VC(75)
+    right_wall_vertical_constraint = VC(125)
 
     lower_right_corner = Vertex(name="Lower Right Corner", constraints=[lower_wall_horizontal_constraint, right_wall_vertical_constraint])
     upper_right_corner = Vertex(name="Upper Right Corner", constraints=[upper_wall_horizontal_constraint, right_wall_vertical_constraint])
