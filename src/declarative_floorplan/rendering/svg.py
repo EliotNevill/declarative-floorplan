@@ -45,6 +45,8 @@ class SVGRenderer:
         svg += f'<svg xmlns="http://www.w3.org/2000/svg" '
         svg += f'viewBox="{viewbox[0]} {viewbox[1]} {viewbox[2]} {viewbox[3]}">\n'
         svg += f'  <title>{self.floorplan.name}</title>\n'
+        # Add white background
+        svg += f'  <rect x="{viewbox[0]}" y="{viewbox[1]}" width="{viewbox[2]}" height="{viewbox[3]}" fill="#ffffff"/>\n'
         svg += f'  <g id="walls">\n'
         svg += walls_svg
         svg += f'  </g>\n'
@@ -111,19 +113,29 @@ class SVGRenderer:
         p1 = wall.start_vertex.get_position()
         p2 = wall.end_vertex.get_position()
 
-        # Calculate perpendicular offsets for wall thickness
+        # Calculate wall angle and perpendicular
         angle = wall.angle()
         perp_angle = angle + math.pi / 2
         half_thick = wall.thickness / 2
 
-        # Four corners of the wall rectangle
+        # Extend wall along its length by half thickness at each end
+        # This ensures proper corner joins
+        extend_x = half_thick * math.cos(angle)
+        extend_y = half_thick * math.sin(angle)
+
+        # Extended start and end points
+        p1_extended = (p1[0] - extend_x, p1[1] - extend_y)
+        p2_extended = (p2[0] + extend_x, p2[1] + extend_y)
+
+        # Calculate perpendicular offsets for wall thickness
         offset_x = half_thick * math.cos(perp_angle)
         offset_y = half_thick * math.sin(perp_angle)
 
-        c1 = (p1[0] - offset_x, p1[1] - offset_y)
-        c2 = (p1[0] + offset_x, p1[1] + offset_y)
-        c3 = (p2[0] + offset_x, p2[1] + offset_y)
-        c4 = (p2[0] - offset_x, p2[1] - offset_y)
+        # Four corners of the wall rectangle (using extended points)
+        c1 = (p1_extended[0] - offset_x, p1_extended[1] - offset_y)
+        c2 = (p1_extended[0] + offset_x, p1_extended[1] + offset_y)
+        c3 = (p2_extended[0] + offset_x, p2_extended[1] + offset_y)
+        c4 = (p2_extended[0] - offset_x, p2_extended[1] - offset_y)
 
         points = f"{c1[0]:.2f},{c1[1]:.2f} {c2[0]:.2f},{c2[1]:.2f} {c3[0]:.2f},{c3[1]:.2f} {c4[0]:.2f},{c4[1]:.2f}"
 

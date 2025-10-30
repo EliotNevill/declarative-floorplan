@@ -279,4 +279,4 @@ with Floorplan("Complete Apartment Floorplan - All Rooms") as fp:
     # SVG: 510.90-599.54 at y=1310.64
     door_exterior_bottom = Door(name="Exterior Bottom", wall=tk_wall1, position=555.22, width=88.64)
 
-    fp.generate_svg("complete_apartment.svg")
+    fp.generate_svg("examples/complete_apartment.svg")
