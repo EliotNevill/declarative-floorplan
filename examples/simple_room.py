@@ -1,7 +1,8 @@
 
 from declarative_floorplan import Floorplan, Vertex, Wall, Door, Window, Position as Pos, HorizontalConstraint as HC, VerticalConstraint as VC
 
-with Floorplan("A basic room") as fp:
+fp = Floorplan("A basic room")
+with fp:
     lower_wall_horizontal_constraint = HC(50)
     upper_wall_horizontal_constraint = HC(100)
     left_wall_vertical_constraint = VC(75)
@@ -24,5 +25,5 @@ with Floorplan("A basic room") as fp:
 
     window = Window(name="Front Window", wall=upper_wall, position=Pos.CENTERED, width=40)
 
-    fp.generate_svg("basic_room.svg")
+fp.generate_svg("examples/basic_room.svg")
 
