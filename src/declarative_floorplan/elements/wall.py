@@ -107,33 +107,5 @@ class Wall(FloorplanElement):
         y = point[1] + offset * math.sin(perp_angle)
         return (x, y)
 
-    def to_svg(self) -> str:
-        """
-        Convert wall to SVG markup.
-
-        Returns:
-            SVG string representation
-        """
-        p1 = self.start_vertex.get_position()
-        p2 = self.end_vertex.get_position()
-
-        # Calculate perpendicular offsets for wall thickness
-        angle = self.angle()
-        perp_angle = angle + math.pi / 2
-        half_thick = self.thickness / 2
-
-        # Four corners of the wall rectangle
-        offset_x = half_thick * math.cos(perp_angle)
-        offset_y = half_thick * math.sin(perp_angle)
-
-        c1 = (p1[0] - offset_x, p1[1] - offset_y)
-        c2 = (p1[0] + offset_x, p1[1] + offset_y)
-        c3 = (p2[0] + offset_x, p2[1] + offset_y)
-        c4 = (p2[0] - offset_x, p2[1] - offset_y)
-
-        points = f"{c1[0]:.2f},{c1[1]:.2f} {c2[0]:.2f},{c2[1]:.2f} {c3[0]:.2f},{c3[1]:.2f} {c4[0]:.2f},{c4[1]:.2f}"
-
-        return f'<polygon points="{points}" fill="#000000" stroke="#000000" stroke-width="0.5"/>'
-
     def __repr__(self) -> str:
         return f"Wall({self.name}, {self.start_vertex.name} -> {self.end_vertex.name})"

@@ -40,16 +40,17 @@ class Floorplan:
         """
         self.registry.register(element)
 
-    def generate_svg(self, output_path: str) -> None:
+    def generate_svg(self, output_path: str, config=None) -> None:
         """
         Generate SVG output for this floorplan.
 
         Args:
             output_path: Path to write the SVG file
+            config: Optional RenderConfig for custom styling
         """
         from declarative_floorplan.rendering.svg import SVGRenderer
 
-        renderer = SVGRenderer(self)
+        renderer = SVGRenderer(self, config=config)
         svg_content = renderer.render()
 
         with open(output_path, "w") as f:

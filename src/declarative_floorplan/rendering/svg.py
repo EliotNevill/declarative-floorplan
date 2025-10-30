@@ -1,21 +1,30 @@
 """SVG rendering engine."""
 
-from typing import Tuple
+import math
+from typing import Optional, Tuple
 
 from declarative_floorplan.core.floorplan import Floorplan
+from declarative_floorplan.elements.door import Door
+from declarative_floorplan.elements.wall import Wall
+from declarative_floorplan.elements.window import Window
+from declarative_floorplan.rendering.styles import DEFAULT_CONFIG, RenderConfig
 
 
 class SVGRenderer:
     """Renders floorplans to SVG format."""
 
-    def __init__(self, floorplan: Floorplan) -> None:
+    def __init__(
+        self, floorplan: Floorplan, config: Optional[RenderConfig] = None
+    ) -> None:
         """
         Initialize the SVG renderer.
 
         Args:
             floorplan: Floorplan to render
+            config: Rendering configuration (uses default if None)
         """
         self.floorplan = floorplan
+        self.config = config or DEFAULT_CONFIG
 
     def render(self) -> str:
         """
@@ -68,7 +77,7 @@ class SVGRenderer:
         max_y = max(ys)
 
         # Add padding
-        padding = 20
+        padding = self.config.viewbox_padding
         width = max_x - min_x + 2 * padding
         height = max_y - min_y + 2 * padding
 
@@ -85,9 +94,42 @@ class SVGRenderer:
         svg = ""
 
         for wall in walls:
-            svg += f"    {wall.to_svg()}\n"
+            svg += f"    {self._render_wall(wall)}\n"
 
         return svg
+
+    def _render_wall(self, wall: Wall) -> str:
+        """
+        Render a single wall.
+
+        Args:
+            wall: Wall to render
+
+        Returns:
+            SVG string for the wall
+        """
+        p1 = wall.start_vertex.get_position()
+        p2 = wall.end_vertex.get_position()
+
+        # Calculate perpendicular offsets for wall thickness
+        angle = wall.angle()
+        perp_angle = angle + math.pi / 2
+        half_thick = wall.thickness / 2
+
+        # Four corners of the wall rectangle
+        offset_x = half_thick * math.cos(perp_angle)
+        offset_y = half_thick * math.sin(perp_angle)
+
+        c1 = (p1[0] - offset_x, p1[1] - offset_y)
+        c2 = (p1[0] + offset_x, p1[1] + offset_y)
+        c3 = (p2[0] + offset_x, p2[1] + offset_y)
+        c4 = (p2[0] - offset_x, p2[1] - offset_y)
+
+        points = f"{c1[0]:.2f},{c1[1]:.2f} {c2[0]:.2f},{c2[1]:.2f} {c3[0]:.2f},{c3[1]:.2f} {c4[0]:.2f},{c4[1]:.2f}"
+
+        # Use configured style
+        style = self.config.wall_internal
+        return f'<polygon points="{points}" {style.to_svg_attrs()}/>'
 
     def _render_openings(self) -> str:
         """
@@ -102,9 +144,99 @@ class SVGRenderer:
         svg = ""
 
         for door in doors:
-            svg += f"    {door.to_svg()}\n"
+            svg += f"    {self._render_door(door)}\n"
 
         for window in windows:
-            svg += f"    {window.to_svg()}\n"
+            svg += f"    {self._render_window(window)}\n"
+
+        return svg
+
+    def _render_door(self, door: Door) -> str:
+        """
+        Render a single door.
+
+        Args:
+            door: Door to render
+
+        Returns:
+            SVG string for the door
+        """
+        start_point, end_point = door.get_start_end_points()
+
+        # Create the door opening (gap in wall)
+        svg = f'<line x1="{start_point[0]:.2f}" y1="{start_point[1]:.2f}" '
+        svg += f'x2="{end_point[0]:.2f}" y2="{end_point[1]:.2f}" '
+        svg += f'stroke="{self.config.door_fill}" stroke-width="{self.config.door_stroke_width}" />\n'
+
+        # Add door swing arc
+        wall_angle = door.wall.angle()
+        swing_radius = door.width
+
+        # Convert swing angle to radians
+        swing_rad = math.radians(door.swing_angle)
+
+        # Calculate arc start and end angles
+        arc_start_angle = wall_angle
+        arc_end_angle = wall_angle + swing_rad
+
+        # Create SVG arc path
+        start_x = start_point[0]
+        start_y = start_point[1]
+
+        # Calculate end point of arc
+        end_arc_x = start_x + swing_radius * math.cos(arc_end_angle)
+        end_arc_y = start_y + swing_radius * math.sin(arc_end_angle)
+
+        # Determine large arc flag (1 if > 180 degrees)
+        large_arc = 1 if abs(door.swing_angle) > 180 else 0
+
+        # SVG path for arc
+        svg += f'<path d="M {start_x:.2f},{start_y:.2f} '
+        svg += f'A {swing_radius:.2f},{swing_radius:.2f} 0 {large_arc},1 {end_arc_x:.2f},{end_arc_y:.2f}" '
+        svg += f'fill="none" stroke="{self.config.door_arc_stroke}" stroke-width="{self.config.door_arc_stroke_width}" />\n'
+
+        # Add door panel line
+        svg += f'<line x1="{start_x:.2f}" y1="{start_y:.2f}" '
+        svg += f'x2="{end_arc_x:.2f}" y2="{end_arc_y:.2f}" '
+        svg += f'stroke="{self.config.door_stroke}" stroke-width="{self.config.door_stroke_width}" />'
+
+        return svg
+
+    def _render_window(self, window: Window) -> str:
+        """
+        Render a single window.
+
+        Args:
+            window: Window to render
+
+        Returns:
+            SVG string for the window
+        """
+        start_point, end_point = window.get_start_end_points()
+
+        # Get perpendicular offsets for window depth
+        wall_angle = window.wall.angle()
+        perp_angle = wall_angle + math.pi / 2
+        half_depth = window.depth / 2
+
+        # Calculate four corners of window rectangle
+        offset_x = half_depth * math.cos(perp_angle)
+        offset_y = half_depth * math.sin(perp_angle)
+
+        c1 = (start_point[0] - offset_x, start_point[1] - offset_y)
+        c2 = (start_point[0] + offset_x, start_point[1] + offset_y)
+        c3 = (end_point[0] + offset_x, end_point[1] + offset_y)
+        c4 = (end_point[0] - offset_x, end_point[1] - offset_y)
+
+        points = f"{c1[0]:.2f},{c1[1]:.2f} {c2[0]:.2f},{c2[1]:.2f} {c3[0]:.2f},{c3[1]:.2f} {c4[0]:.2f},{c4[1]:.2f}"
+
+        # Create window rectangle
+        style = self.config.get_window_style()
+        svg = f'<polygon points="{points}" {style.to_svg_attrs()} />\n'
+
+        # Add glass pane lines
+        svg += f'<line x1="{start_point[0]:.2f}" y1="{start_point[1]:.2f}" '
+        svg += f'x2="{end_point[0]:.2f}" y2="{end_point[1]:.2f}" '
+        svg += f'stroke="{self.config.window_glass_stroke}" stroke-width="{self.config.window_glass_stroke_width}" />'
 
         return svg

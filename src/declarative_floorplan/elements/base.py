@@ -1,6 +1,6 @@
 """Base class for all floorplan elements."""
 
-from abc import ABC, abstractmethod
+from abc import ABC
 
 
 class FloorplanElement(ABC):
@@ -14,16 +14,6 @@ class FloorplanElement(ABC):
             name: Human-readable name for the element
         """
         self.name = name
-
-    @abstractmethod
-    def to_svg(self) -> str:
-        """
-        Convert this element to SVG markup.
-
-        Returns:
-            SVG string representation
-        """
-        pass
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.name})"

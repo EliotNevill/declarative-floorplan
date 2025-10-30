@@ -74,7 +74,3 @@ class Opening(FloorplanElement):
         end_point = self.wall.point_at_distance(center_dist + half_width)
 
         return (start_point, end_point)
-
-    def to_svg(self) -> str:
-        """Must be implemented by subclasses."""
-        raise NotImplementedError("Subclasses must implement to_svg()")

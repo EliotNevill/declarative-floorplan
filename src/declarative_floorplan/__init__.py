@@ -10,6 +10,7 @@ from declarative_floorplan.geometry.constraints import (
 )
 from declarative_floorplan.geometry.vertex import Vertex
 from declarative_floorplan.positioning.position import Position
+from declarative_floorplan.rendering.styles import ElementStyle, RenderConfig
 
 __version__ = "0.1.0"
 
@@ -22,4 +23,6 @@ __all__ = [
     "HorizontalConstraint",
     "VerticalConstraint",
     "Position",
+    "RenderConfig",
+    "ElementStyle",
 ]
