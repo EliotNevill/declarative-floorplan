@@ -1,7 +1,5 @@
+from declarative_floorplan import Floorplan, Vertex, Wall, Door, Window, Position as Pos, HorizontalConstraint as HC, VerticalConstraint as VC
 
-from declarative_floorplan import Floorplan, Vertex, Wall, Door, Window
-from declarative_floorplan import HorizontalConstraint as HC
-from declarative_floorplan import VerticalConstraint as VC
 
 # Complete representation of the model.svg floorplan with EXACT coordinates from the SVG
 # This apartment layout includes ALL 13 rooms from the original model.svg
@@ -234,5 +232,51 @@ with Floorplan("Complete Apartment Floorplan - All Rooms") as fp:
     tk_wall2 = Wall(name="TK Top", start_vertex=tk_corner2, end_vertex=tk_corner3)
     tk_wall3 = Wall(name="TK Right", start_vertex=tk_corner3, end_vertex=tk_corner4)
     tk_wall4 = Wall(name="TK Bottom", start_vertex=tk_corner4, end_vertex=tk_corner1)
+
+    # ========== WINDOWS ==========
+    # Top wall windows (Outdoor2 Bottom wall, shared with Living Room)
+    # From SVG: 239.80-389.84, 591.08-718.17, 724.88-843.15 (all at y=280.30/265.30)
+    window_top_1 = Window(name="Top Window 1", wall=living_wall7, position=314.82, width=150.04)
+    window_top_2 = Window(name="Top Window 2", wall=living_wall7, position=654.62, width=127.09)
+    window_top_3 = Window(name="Top Window 3", wall=living_wall7, position=784.01, width=118.27)
+
+    # Bottom wall windows (Bedroom2 Bottom wall and exterior)
+    # From SVG: 175.45-328.09, 400.41-463.69, 722.86-873.33 (all at y=1310.64/1325.64)
+    window_bottom_1 = Window(name="Bottom Window 1", wall=bedroom2_wall1, position=251.77, width=152.64)
+    window_bottom_2 = Window(name="Bottom Window 2", wall=wc_wall2, position=432.05, width=63.28)
+    window_bottom_3 = Window(name="Bottom Window 3", wall=kt_w6, position=798.09, width=150.47)
+
+    # ========== DOORS ==========
+    # Main entrance door to outdoor space (top wall)
+    # SVG: 504.93-584.02 at y=280.30
+    door_main_entrance = Door(name="Main Entrance", wall=living_wall7, position=544.47, width=79.09)
+
+    # Door from Entry to Living Room (diagonal wall)
+    # SVG: diagonal door on wall en_w6
+    door_entry_living = Door(name="Entry to Living", wall=en_w6, position=Pos.CENTERED, width=75)
+
+    # Door from Bedroom1 to Living Room (vertical wall)
+    # SVG: 495.90,426.51 to 495.90,335.77 (width 90.74)
+    door_bedroom1_living = Door(name="Bedroom1 to Living", wall=living_wall6, position=381.14, width=90.74)
+
+    # Door from Bedroom1 to Bathroom/Utility area
+    # SVG: 105.41-167.87 at y=599.71
+    door_bedroom1_bath = Door(name="Bedroom1 to Bath", wall=bedroom1_wall4, position=136.64, width=62.46)
+
+    # Door from Closet to Bathroom area
+    # SVG: 240.80,809.03 to 240.80,743.04 (width 65.99)
+    door_closet_bath = Door(name="Closet to Bath", wall=closet_wall1, position=776.03, width=65.99)
+
+    # Door from Entry to WC (diagonal wall)
+    # SVG: diagonal door on entry wall
+    door_entry_wc = Door(name="Entry to WC", wall=en_w2, position=Pos.CENTERED, width=90)
+
+    # Door from Entry/TK area to exterior (vertical wall)
+    # SVG: on TK wall
+    door_tk_entry = Door(name="TK to Entry", wall=en_w8, position=Pos.CENTERED, width=114.24)
+
+    # Main exterior door (bottom outdoor space)
+    # SVG: 510.90-599.54 at y=1310.64
+    door_exterior_bottom = Door(name="Exterior Bottom", wall=tk_wall1, position=555.22, width=88.64)
 
     fp.generate_svg("complete_apartment.svg")
