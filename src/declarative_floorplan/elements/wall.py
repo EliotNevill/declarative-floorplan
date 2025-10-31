@@ -11,7 +11,7 @@ class Wall(FloorplanElement):
     """A wall connecting two vertices."""
 
     def __init__(
-        self, name: str, start_vertex: Vertex, end_vertex: Vertex, thickness: float = 15.0
+        self, name: str, start_vertex: Vertex, end_vertex: Vertex, thickness: float = 4.0
     ) -> None:
         """
         Initialize a wall.
@@ -20,7 +20,7 @@ class Wall(FloorplanElement):
             name: Human-readable name for the wall
             start_vertex: Starting vertex
             end_vertex: Ending vertex
-            thickness: Wall thickness in pixels (default: 15.0)
+            thickness: Wall thickness in pixels (default: 4.0)
         """
         super().__init__(name)
         self.start_vertex = start_vertex

@@ -3,16 +3,26 @@
   <title>A basic room</title>
   <rect x="55.0" y="30.0" width="90.0" height="90.0" fill="#ffffff"/>
   <g id="walls">
-    <polygon points="67.50,42.50 67.50,57.50 132.50,57.50 132.50,42.50" fill="#000000" stroke="#000000" stroke-width="0.5"/>
-    <polygon points="67.50,92.50 67.50,107.50 132.50,107.50 132.50,92.50" fill="#000000" stroke="#000000" stroke-width="0.5"/>
-    <polygon points="82.50,42.50 67.50,42.50 67.50,107.50 82.50,107.50" fill="#000000" stroke="#000000" stroke-width="0.5"/>
-    <polygon points="132.50,42.50 117.50,42.50 117.50,107.50 132.50,107.50" fill="#000000" stroke="#000000" stroke-width="0.5"/>
+    <polygon points="73.00,48.00 73.00,52.00 127.00,52.00 127.00,48.00" fill="#000000" stroke="#000000" stroke-width="0.5"/>
+    <polygon points="73.00,98.00 73.00,102.00 127.00,102.00 127.00,98.00" fill="#000000" stroke="#000000" stroke-width="0.5"/>
+    <polygon points="77.00,48.00 73.00,48.00 73.00,102.00 77.00,102.00" fill="#000000" stroke="#000000" stroke-width="0.5"/>
+    <polygon points="127.00,48.00 123.00,48.00 123.00,102.00 127.00,102.00" fill="#000000" stroke="#000000" stroke-width="0.5"/>
   </g>
   <g id="openings">
-    <line x1="85.00" y1="50.00" x2="115.00" y2="50.00" stroke="#ffffff" stroke-width="1.0" />
-<path d="M 85.00,50.00 A 30.00,30.00 0 0,1 85.00,80.00" fill="none" stroke="#000000" stroke-width="1.0" />
-<line x1="85.00" y1="50.00" x2="85.00" y2="80.00" stroke="#000000" stroke-width="1.0" />
-    <polygon points="80.00,97.50 80.00,102.50 120.00,102.50 120.00,97.50" fill="#e0e0ff" stroke="#000000" stroke-width="1.0" />
-<line x1="80.00" y1="100.00" x2="120.00" y2="100.00" stroke="#000000" stroke-width="0.5" />
+    <g id="Door" fill="#ffffff" stroke="#000000" style="fill-opacity: 1; stroke-width: 1.0; stroke-opacity: 1;" class="Door">
+  <g id="Threshold" class="Threshold">
+    <polygon points="85.00,48.00 85.00,52.00 115.00,52.00 115.00,48.00" />
+  </g>
+  <g id="Panel" fill="none" class="Panel">
+    <path d="M 85.00,52.00 A 30.00,30.00 0 0,1 55.00,52.00" stroke="#000000" stroke-width="1.0" />
+    <line x1="85.00" y1="52.00" x2="55.00" y2="52.00" stroke="#000000" stroke-width="1.0" />
+  </g>
+</g>
+    <g id="Window" class="Window">
+  <polygon points="80.00,97.50 80.00,102.50 120.00,102.50 120.00,97.50" fill="#e0e0ff" stroke="#000000" stroke-width="1.0" />
+  <line x1="80.00" y1="100.00" x2="120.00" y2="100.00" stroke="#000000" stroke-width="0.5" />
+  <line x1="80.00" y1="98.75" x2="120.00" y2="98.75" stroke="#000000" stroke-width="0.5" />
+  <line x1="80.00" y1="101.25" x2="120.00" y2="101.25" stroke="#000000" stroke-width="0.5" />
+</g>
   </g>
 </svg>

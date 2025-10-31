@@ -41,19 +41,19 @@ class SVGRenderer:
         openings_svg = self._render_openings()
 
         # Build SVG document
-        svg = f'<?xml version="1.0" encoding="UTF-8"?>\n'
-        svg += f'<svg xmlns="http://www.w3.org/2000/svg" '
+        svg = '<?xml version="1.0" encoding="UTF-8"?>\n'
+        svg += '<svg xmlns="http://www.w3.org/2000/svg" '
         svg += f'viewBox="{viewbox[0]} {viewbox[1]} {viewbox[2]} {viewbox[3]}">\n'
         svg += f'  <title>{self.floorplan.name}</title>\n'
         # Add white background
         svg += f'  <rect x="{viewbox[0]}" y="{viewbox[1]}" width="{viewbox[2]}" height="{viewbox[3]}" fill="#ffffff"/>\n'
-        svg += f'  <g id="walls">\n'
+        svg += '  <g id="walls">\n'
         svg += walls_svg
-        svg += f'  </g>\n'
-        svg += f'  <g id="openings">\n'
+        svg += '  </g>\n'
+        svg += '  <g id="openings">\n'
         svg += openings_svg
-        svg += f'  </g>\n'
-        svg += f'</svg>'
+        svg += '  </g>\n'
+        svg += '</svg>'
 
         return svg
 
@@ -175,42 +175,66 @@ class SVGRenderer:
         """
         start_point, end_point = door.get_start_end_points()
 
-        # Create the door opening (gap in wall)
-        svg = f'<line x1="{start_point[0]:.2f}" y1="{start_point[1]:.2f}" '
-        svg += f'x2="{end_point[0]:.2f}" y2="{end_point[1]:.2f}" '
-        svg += f'stroke="{self.config.door_fill}" stroke-width="{self.config.door_stroke_width}" />\n'
-
-        # Add door swing arc
+        # Calculate perpendicular offsets for door thickness
         wall_angle = door.wall.angle()
-        swing_radius = door.width
+        perp_angle = wall_angle + math.pi / 2
+        half_thick = door.wall.thickness / 2
 
-        # Convert swing angle to radians
+        # Calculate four corners of threshold
+        offset_x = half_thick * math.cos(perp_angle)
+        offset_y = half_thick * math.sin(perp_angle)
+
+        c1 = (start_point[0] - offset_x, start_point[1] - offset_y)
+        c2 = (start_point[0] + offset_x, start_point[1] + offset_y)
+        c3 = (end_point[0] + offset_x, end_point[1] + offset_y)
+        c4 = (end_point[0] - offset_x, end_point[1] - offset_y)
+
+        threshold_points = f"{c1[0]:.2f},{c1[1]:.2f} {c2[0]:.2f},{c2[1]:.2f} {c3[0]:.2f},{c3[1]:.2f} {c4[0]:.2f},{c4[1]:.2f}"
+
+        # Start door group
+        svg = f'<g id="Door" fill="{self.config.door_fill}" stroke="{self.config.door_stroke}" '
+        svg += f'style="fill-opacity: 1; stroke-width: {self.config.door_stroke_width}; stroke-opacity: 1;" '
+        svg += 'class="Door">\n'
+
+        # Threshold
+        svg += '  <g id="Threshold" class="Threshold">\n'
+        svg += f'    <polygon points="{threshold_points}" />\n'
+        svg += '  </g>\n'
+
+        # Panel and swing arc
+        swing_radius = door.width
         swing_rad = math.radians(door.swing_angle)
 
-        # Calculate arc start and end angles
-        arc_start_angle = wall_angle
-        arc_end_angle = wall_angle + swing_rad
+        # Calculate hinge point (on the inside edge of the wall)
+        hinge_x = start_point[0] + offset_x
+        hinge_y = start_point[1] + offset_y
 
-        # Create SVG arc path
-        start_x = start_point[0]
-        start_y = start_point[1]
+        # Calculate door positions
+        # Start angle: door extends perpendicular to wall (inward)
+        swing_start_angle = wall_angle + math.pi / 2  # perpendicular to wall (inward)
 
-        # Calculate end point of arc
-        end_arc_x = start_x + swing_radius * math.cos(arc_end_angle)
-        end_arc_y = start_y + swing_radius * math.sin(arc_end_angle)
+        # Open position: door rotates by swing_angle
+        arc_end_angle = swing_start_angle + swing_rad
+        end_arc_x = hinge_x + swing_radius * math.cos(arc_end_angle)
+        end_arc_y = hinge_y + swing_radius * math.sin(arc_end_angle)
 
-        # Determine large arc flag (1 if > 180 degrees)
+        # Determine large arc flag
         large_arc = 1 if abs(door.swing_angle) > 180 else 0
 
-        # SVG path for arc
-        svg += f'<path d="M {start_x:.2f},{start_y:.2f} '
+        # Panel group with swing arc
+        svg += '  <g id="Panel" fill="none" class="Panel">\n'
+        # Arc from hinge showing swing path - use sweep-flag 1 for clockwise direction
+        svg += f'    <path d="M {hinge_x:.2f},{hinge_y:.2f} '
         svg += f'A {swing_radius:.2f},{swing_radius:.2f} 0 {large_arc},1 {end_arc_x:.2f},{end_arc_y:.2f}" '
-        svg += f'fill="none" stroke="{self.config.door_arc_stroke}" stroke-width="{self.config.door_arc_stroke_width}" />\n'
+        svg += f'stroke="{self.config.door_arc_stroke}" stroke-width="{self.config.door_arc_stroke_width}" />\n'
 
-        # Add door panel line
-        svg += f'<line x1="{start_x:.2f}" y1="{start_y:.2f}" '
+        # Door panel line in open position
+        svg += f'    <line x1="{hinge_x:.2f}" y1="{hinge_y:.2f}" '
         svg += f'x2="{end_arc_x:.2f}" y2="{end_arc_y:.2f}" '
-        svg += f'stroke="{self.config.door_stroke}" stroke-width="{self.config.door_stroke_width}" />'
+        svg += f'stroke="{self.config.door_stroke}" stroke-width="{self.config.door_stroke_width}" />\n'
+        svg += '  </g>\n'
+
+        svg += '</g>'
 
         return svg
 
@@ -242,13 +266,34 @@ class SVGRenderer:
 
         points = f"{c1[0]:.2f},{c1[1]:.2f} {c2[0]:.2f},{c2[1]:.2f} {c3[0]:.2f},{c3[1]:.2f} {c4[0]:.2f},{c4[1]:.2f}"
 
-        # Create window rectangle
-        style = self.config.get_window_style()
-        svg = f'<polygon points="{points}" {style.to_svg_attrs()} />\n'
+        # Start window group
+        svg = '<g id="Window" class="Window">\n'
 
-        # Add glass pane lines
-        svg += f'<line x1="{start_point[0]:.2f}" y1="{start_point[1]:.2f}" '
+        # Create window rectangle (frame)
+        style = self.config.get_window_style()
+        svg += f'  <polygon points="{points}" {style.to_svg_attrs()} />\n'
+
+        # Add multiple glass pane lines (parallel lines to show glass panes)
+        # Center line
+        svg += f'  <line x1="{start_point[0]:.2f}" y1="{start_point[1]:.2f}" '
         svg += f'x2="{end_point[0]:.2f}" y2="{end_point[1]:.2f}" '
-        svg += f'stroke="{self.config.window_glass_stroke}" stroke-width="{self.config.window_glass_stroke_width}" />'
+        svg += f'stroke="{self.config.window_glass_stroke}" stroke-width="{self.config.window_glass_stroke_width}" />\n'
+
+        # Two additional parallel lines for visual interest
+        quarter_offset = half_depth * 0.5
+        offset_x_q = quarter_offset * math.cos(perp_angle)
+        offset_y_q = quarter_offset * math.sin(perp_angle)
+
+        # Line closer to c1/c4
+        svg += f'  <line x1="{start_point[0] - offset_x_q:.2f}" y1="{start_point[1] - offset_y_q:.2f}" '
+        svg += f'x2="{end_point[0] - offset_x_q:.2f}" y2="{end_point[1] - offset_y_q:.2f}" '
+        svg += f'stroke="{self.config.window_glass_stroke}" stroke-width="{self.config.window_glass_stroke_width}" />\n'
+
+        # Line closer to c2/c3
+        svg += f'  <line x1="{start_point[0] + offset_x_q:.2f}" y1="{start_point[1] + offset_y_q:.2f}" '
+        svg += f'x2="{end_point[0] + offset_x_q:.2f}" y2="{end_point[1] + offset_y_q:.2f}" '
+        svg += f'stroke="{self.config.window_glass_stroke}" stroke-width="{self.config.window_glass_stroke_width}" />\n'
+
+        svg += '</g>'
 
         return svg
