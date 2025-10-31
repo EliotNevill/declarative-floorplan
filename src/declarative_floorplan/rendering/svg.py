@@ -209,26 +209,30 @@ class SVGRenderer:
         hinge_x = start_point[0] + offset_x
         hinge_y = start_point[1] + offset_y
 
-        # Calculate door positions
-        # Start angle: door extends perpendicular to wall (inward)
-        swing_start_angle = wall_angle + math.pi / 2  # perpendicular to wall (inward)
+        # <-- FIX 1: Calculate the arc's START point (latch side)
+        # This is the 'closed' position of the door's tip.
+        arc_start_x = end_point[0] + offset_x
+        arc_start_y = end_point[1] + offset_y
 
-        # Open position: door rotates by swing_angle
-        arc_end_angle = swing_start_angle + swing_rad
+        # <-- FIX 2: Calculate the open door angle correctly
+        # The 'closed' angle is the wall_angle. The 'open' angle is wall_angle + swing.
+        arc_end_angle = wall_angle + swing_rad
         end_arc_x = hinge_x + swing_radius * math.cos(arc_end_angle)
         end_arc_y = hinge_y + swing_radius * math.sin(arc_end_angle)
 
-        # Determine large arc flag
+        # <-- FIX 3: Determine large_arc and sweep_flag
         large_arc = 1 if abs(door.swing_angle) > 180 else 0
+        sweep_flag = 1 if door.swing_angle > 0 else 0  # 1 for positive (CCW), 0 for negative (CW)
 
         # Panel group with swing arc
         svg += '  <g id="Panel" fill="none" class="Panel">\n'
-        # Arc from hinge showing swing path - use sweep-flag 1 for clockwise direction
-        svg += f'    <path d="M {hinge_x:.2f},{hinge_y:.2f} '
-        svg += f'A {swing_radius:.2f},{swing_radius:.2f} 0 {large_arc},1 {end_arc_x:.2f},{end_arc_y:.2f}" '
+        
+        # Arc from latch-side (arc_start) to open-door-tip (end_arc)
+        svg += f'    <path d="M {arc_start_x:.2f},{arc_start_y:.2f} '  # <-- FIX 1 (continued)
+        svg += f'A {swing_radius:.2f},{swing_radius:.2f} 0 {large_arc},{sweep_flag} {end_arc_x:.2f},{end_arc_y:.2f}" '  # <-- FIX 3 (continued)
         svg += f'stroke="{self.config.door_arc_stroke}" stroke-width="{self.config.door_arc_stroke_width}" />\n'
 
-        # Door panel line in open position
+        # Door panel line in open position (from hinge to open-door-tip)
         svg += f'    <line x1="{hinge_x:.2f}" y1="{hinge_y:.2f}" '
         svg += f'x2="{end_arc_x:.2f}" y2="{end_arc_y:.2f}" '
         svg += f'stroke="{self.config.door_stroke}" stroke-width="{self.config.door_stroke_width}" />\n'
@@ -237,6 +241,8 @@ class SVGRenderer:
         svg += '</g>'
 
         return svg
+
+
 
     def _render_window(self, window: Window) -> str:
         """
