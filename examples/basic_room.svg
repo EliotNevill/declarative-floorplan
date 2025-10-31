@@ -9,9 +9,9 @@
     <polygon points="132.50,42.50 117.50,42.50 117.50,107.50 132.50,107.50" fill="#000000" stroke="#000000" stroke-width="0.5"/>
   </g>
   <g id="openings">
-    <line x1="135.00" y1="50.00" x2="165.00" y2="50.00" stroke="#ffffff" stroke-width="1.0" />
-<path d="M 135.00,50.00 A 30.00,30.00 0 0,1 135.00,80.00" fill="none" stroke="#000000" stroke-width="1.0" />
-<line x1="135.00" y1="50.00" x2="135.00" y2="80.00" stroke="#000000" stroke-width="1.0" />
+    <line x1="85.00" y1="50.00" x2="115.00" y2="50.00" stroke="#ffffff" stroke-width="1.0" />
+<path d="M 85.00,50.00 A 30.00,30.00 0 0,1 85.00,80.00" fill="none" stroke="#000000" stroke-width="1.0" />
+<line x1="85.00" y1="50.00" x2="85.00" y2="80.00" stroke="#000000" stroke-width="1.0" />
     <polygon points="80.00,97.50 80.00,102.50 120.00,102.50 120.00,97.50" fill="#e0e0ff" stroke="#000000" stroke-width="1.0" />
 <line x1="80.00" y1="100.00" x2="120.00" y2="100.00" stroke="#000000" stroke-width="0.5" />
   </g>

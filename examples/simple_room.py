@@ -1,5 +1,6 @@
 
 from declarative_floorplan import Floorplan, Vertex, Wall, Door, Window, Position as Pos, HorizontalConstraint as HC, VerticalConstraint as VC
+import cairosvg
 
 fp = Floorplan("A basic room")
 with fp:
@@ -21,9 +22,10 @@ with fp:
 
     right_wall = Wall(name="Right Wall", start_vertex=lower_right_corner, end_vertex=upper_right_corner)
 
-    door = Door(name="Main Door", wall=lower_wall, position=75, width=30)
+    door = Door(name="Main Door", wall=lower_wall, position=Pos.CENTERED, width=30)
 
     window = Window(name="Front Window", wall=upper_wall, position=Pos.CENTERED, width=40)
 
 fp.generate_svg("examples/basic_room.svg")
+cairosvg.svg2png(url="examples/basic_room.svg", write_to="examples/basic_room.png")
 
