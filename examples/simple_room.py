@@ -26,6 +26,6 @@ with fp:
 
     window = Window(name="Front Window", wall=upper_wall, position=Pos.CENTERED, width=40)
 
-fp.generate_svg("examples/basic_room.svg")
-cairosvg.svg2png(url="examples/basic_room.svg", write_to="examples/basic_room.png")
+fp.generate_svg("examples/simple_room.svg")
+cairosvg.svg2png(url="examples/simple_room.svg", write_to="examples/simple_room.png")
 
