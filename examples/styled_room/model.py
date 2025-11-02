@@ -59,6 +59,6 @@ with Floorplan("Styled Room Example") as fp:
     Window(name="View", wall=Wall(name="Top", start_vertex=tl, end_vertex=tr), position=Pos.CENTERED, width=35)
 
     # Generate with custom styling
-    fp.generate_svg("examples/styled_room.svg", config=custom_config)
+    fp.generate_svg("examples/styled_room/output.svg", config=custom_config)
 
-print("Compare styled_room.svg with basic_room.svg to see the styling differences!")
+print("Compare styled_room/output.svg with basic_room.svg to see the styling differences!")
