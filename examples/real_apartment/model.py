@@ -1,4 +1,5 @@
 from declarative_floorplan import Floorplan, Vertex, Wall, Door, Window, Position as Pos, HorizontalConstraint as HC, VerticalConstraint as VC
+import cairosvg
 
 
 # Complete representation of the model.svg floorplan with EXACT coordinates from the SVG
@@ -254,3 +255,4 @@ with Floorplan("Complete Apartment Floorplan - All Rooms") as fp:
     door_exterior_bottom = Door(name="Exterior Bottom", wall=tk_wall1, position=555.22, width=88.64)
 
     fp.generate_svg("examples/cubicasa_apartment/output.svg")
+cairosvg.svg2png(url="examples/cubicasa_apartment/output.svg", write_to="examples/cubicasa_apartment/output.png")
