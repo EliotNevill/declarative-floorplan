@@ -1,0 +1,20 @@
+[project]
+name = "visual-cot-mcp"
+version = "0.1.0"
+description = "MCP server for visual chain of thought in floorplan generation"
+requires-python = ">=3.12"
+dependencies = [
+    "declarative-floorplan",
+    "mcp>=0.9.0",
+    "pillow>=10.0.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
+
+[project.scripts]
+visual-cot-mcp = "visual_cot_mcp.server:main"
+
+[tool.uv.sources]
+declarative-floorplan = { path = "../..", editable = true }

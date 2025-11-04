@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "visual-cot": {
+      "command": "/Users/eliotnevill/projects/declarative-floorplan/mcp-servers/visual-cot/.venv/bin/python",
+      "args": [
+        "/Users/eliotnevill/projects/declarative-floorplan/mcp-servers/visual-cot/server.py"
+      ]
+    }
+  }
+}
