@@ -3,14 +3,18 @@
 Test script for generating overlays for all examples.
 
 This script:
-1. Finds all examples with both model.py and input.png
+1. Finds all examples with model.py
 2. Loads the floorplan from each model.py
-3. Generates constraint overlay (constraints on original image)
+3. Generates constraint overlay (constraints on image)
+   - Uses input.png if available, otherwise uses rendered output.png
 4. Generates floorplan overlay (rendered floorplan on original image)
+   - Only if input.png is available
 """
 
 import sys
 from pathlib import Path
+from PIL import Image
+from io import BytesIO
 
 from visual_cot_mcp import (
     load_floorplan_from_model,
@@ -20,9 +24,9 @@ from visual_cot_mcp import (
 )
 
 
-def find_examples_with_images(examples_dir: Path) -> list[Path]:
+def find_examples(examples_dir: Path) -> list[Path]:
     """
-    Find all example directories that have both model.py and input.png.
+    Find all example directories that have model.py.
 
     Args:
         examples_dir: Path to the examples directory
@@ -37,12 +41,38 @@ def find_examples_with_images(examples_dir: Path) -> list[Path]:
             continue
 
         model_file = example_dir / "model.py"
-        input_image = example_dir / "input.png"
 
-        if model_file.exists() and input_image.exists():
+        if model_file.exists():
             examples.append(example_dir)
 
     return sorted(examples)
+
+
+def render_floorplan_to_image(floorplan) -> Image.Image:
+    """
+    Render a floorplan to a PIL Image.
+
+    Args:
+        floorplan: The Floorplan object
+
+    Returns:
+        PIL Image of the rendered floorplan
+    """
+    from declarative_floorplan.rendering.svg import SVGRenderer
+    import cairosvg
+
+    # Render the floorplan to SVG
+    renderer = SVGRenderer(floorplan)
+    svg_content = renderer.render()
+
+    # Convert SVG to PNG
+    png_bytes = cairosvg.svg2png(
+        bytestring=svg_content.encode('utf-8'),
+        output_width=1200
+    )
+
+    # Load as PIL Image
+    return Image.open(BytesIO(png_bytes))
 
 
 def process_example(example_dir: Path) -> bool:
@@ -58,9 +88,14 @@ def process_example(example_dir: Path) -> bool:
     example_name = example_dir.name
     model_file = example_dir / "model.py"
     input_image = example_dir / "input.png"
+    has_input_image = input_image.exists()
 
     print(f"\n{'=' * 60}")
     print(f"Processing: {example_name}")
+    if has_input_image:
+        print("  (with input image)")
+    else:
+        print("  (no input image - will use rendered output)")
     print(f"{'=' * 60}")
 
     # Load floorplan from model
@@ -83,12 +118,33 @@ def process_example(example_dir: Path) -> bool:
         print(f"   ✗ Error extracting constraints: {e}")
         return False
 
+    # Determine base image for constraints overlay
+    if has_input_image:
+        base_image_path = input_image
+        base_image_desc = "input image"
+    else:
+        # Render the floorplan first and use it as base
+        print("\n3. Rendering floorplan (no input image available)...")
+        try:
+            rendered_image = render_floorplan_to_image(floorplan)
+            temp_base_path = example_dir / "output.png"
+            rendered_image.save(str(temp_base_path))
+            base_image_path = temp_base_path
+            base_image_desc = "rendered output"
+            print(f"   ✓ Rendered to: {temp_base_path.name}")
+        except Exception as e:
+            print(f"   ✗ Error rendering floorplan: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
     # Draw constraints on image
-    print("\n3. Drawing constraints overlay...")
+    step_num = 4 if not has_input_image else 3
+    print(f"\n{step_num}. Drawing constraints overlay (on {base_image_desc})...")
     try:
         constraints_output = example_dir / "constraints_overlay.png"
         result = draw_constraints_on_image(
-            image_path=str(input_image),
+            image_path=str(base_image_path),
             constraints=constraints,
             draw_horizontal=True,
             draw_vertical=True,
@@ -104,22 +160,26 @@ def process_example(example_dir: Path) -> bool:
         traceback.print_exc()
         return False
 
-    # Overlay rendered floorplan
-    print("\n4. Drawing floorplan overlay...")
-    try:
-        overlay_output = example_dir / "floorplan_overlay.png"
-        result = overlay_floorplan_on_image(
-            floorplan=floorplan,
-            image_path=str(input_image),
-            overlay_opacity=0.6
-        )
-        result.save(str(overlay_output))
-        print(f"   ✓ Saved to: {overlay_output.name}")
-    except Exception as e:
-        print(f"   ✗ Error overlaying floorplan: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    # Overlay rendered floorplan (only if we have an input image)
+    if has_input_image:
+        step_num += 1
+        print(f"\n{step_num}. Drawing floorplan overlay (on input image)...")
+        try:
+            overlay_output = example_dir / "floorplan_overlay.png"
+            result = overlay_floorplan_on_image(
+                floorplan=floorplan,
+                image_path=str(input_image),
+                overlay_opacity=0.6
+            )
+            result.save(str(overlay_output))
+            print(f"   ✓ Saved to: {overlay_output.name}")
+        except Exception as e:
+            print(f"   ✗ Error overlaying floorplan: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    else:
+        print("\n   ⊘ Skipping floorplan overlay (no input image)")
 
     print(f"\n✅ Successfully processed {example_name}")
     return True
@@ -135,16 +195,23 @@ def main():
         print(f"Error: Examples directory not found: {examples_dir}")
         sys.exit(1)
 
-    # Find all examples with images
-    examples = find_examples_with_images(examples_dir)
+    # Find all examples with model.py
+    examples = find_examples(examples_dir)
 
     if not examples:
-        print("No examples found with both model.py and input.png")
+        print("No examples found with model.py")
         sys.exit(1)
 
-    print(f"Found {len(examples)} example(s) with input images:")
+    # Count how many have input images
+    examples_with_images = sum(1 for ex in examples if (ex / "input.png").exists())
+
+    print(f"Found {len(examples)} example(s) with model.py:")
+    print(f"  - {examples_with_images} with input images")
+    print(f"  - {len(examples) - examples_with_images} without input images")
+    print()
     for example in examples:
-        print(f"  - {example.name}")
+        has_input = "✓" if (example / "input.png").exists() else "✗"
+        print(f"  {has_input} {example.name}")
 
     # Process each example
     success_count = 0
