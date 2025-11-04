@@ -13,7 +13,8 @@ from declarative_floorplan import (
 # Set a high recursion depth for complex floorplans
 sys.setrecursionlimit(5000)
 
-with Floorplan("Sample Floorplan") as fp:
+fp = Floorplan("Sample Floorplan")
+with fp:
     """
     Step 1: Constraint Identification
     Define all unique horizontal (y-axis) and vertical (x-axis)
@@ -210,6 +211,3 @@ with Floorplan("Sample Floorplan") as fp:
     Window("w_liv_right_1", wall=w_liv_right, width=150, position=200)
     Window("w_liv_right_2", wall=w_liv_right, width=150, position=500)
     Window("w_liv_bottom", wall=w_liv_bottom, width=200, position=Pos.CENTERED)
-
-    # --- Generate the floorplan ---
-    fp.generate_svg("examples/gemeni_pro_2025_11_03/output.svg")
