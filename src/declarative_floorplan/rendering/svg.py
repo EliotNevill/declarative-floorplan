@@ -61,8 +61,10 @@ class SVGRenderer:
         """
         Calculate the viewBox for the SVG.
 
+        Always starts at (0, 0) to ensure constraint coordinates align correctly.
+
         Returns:
-            Tuple of (min_x, min_y, width, height)
+            Tuple of (0, 0, width, height)
         """
         vertices = self.floorplan.registry.get_vertices()
 
@@ -78,12 +80,22 @@ class SVGRenderer:
         min_y = min(ys)
         max_y = max(ys)
 
-        # Add padding
+        # Add padding around the content
         padding = self.config.viewbox_padding
-        width = max_x - min_x + 2 * padding
-        height = max_y - min_y + 2 * padding
 
-        return (min_x - padding, min_y - padding, width, height)
+        # Calculate dimensions to include all content plus padding
+        # ViewBox always starts at (0, 0) for proper coordinate alignment
+        width = max_x + padding
+        height = max_y + padding
+
+        # If content doesn't start at 0, we still need to include that space
+        # to ensure coordinates are preserved
+        if min_x < 0:
+            width += abs(min_x)
+        if min_y < 0:
+            height += abs(min_y)
+
+        return (0, 0, width, height)
 
     def _render_walls(self) -> str:
         """
