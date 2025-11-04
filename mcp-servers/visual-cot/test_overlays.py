@@ -60,15 +60,43 @@ def render_floorplan_to_image(floorplan) -> Image.Image:
     """
     from declarative_floorplan.rendering.svg import SVGRenderer
     import cairosvg
+    import re
 
     # Render the floorplan to SVG
     renderer = SVGRenderer(floorplan)
     svg_content = renderer.render()
 
+    # Extract viewBox dimensions from SVG to maintain aspect ratio
+    viewbox_match = re.search(r'viewBox="([^"]+)"', svg_content)
+
+    if viewbox_match:
+        # Parse viewBox: "x y width height"
+        viewbox_parts = viewbox_match.group(1).split()
+        if len(viewbox_parts) == 4:
+            vb_width = float(viewbox_parts[2])
+            vb_height = float(viewbox_parts[3])
+
+            # Scale to a reasonable size while maintaining aspect ratio
+            # Target max dimension of 1200px
+            max_dimension = 1200
+            scale = min(max_dimension / vb_width, max_dimension / vb_height)
+
+            output_width = int(vb_width * scale)
+            output_height = int(vb_height * scale)
+        else:
+            # Fallback to default
+            output_width = 1200
+            output_height = None
+    else:
+        # Fallback to default
+        output_width = 1200
+        output_height = None
+
     # Convert SVG to PNG
     png_bytes = cairosvg.svg2png(
         bytestring=svg_content.encode('utf-8'),
-        output_width=1200
+        output_width=output_width,
+        output_height=output_height
     )
 
     # Load as PIL Image
