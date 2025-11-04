@@ -29,3 +29,8 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated outputs
+examples/**/output.svg
+examples/**/output.png
+examples/**/*_overlay.png
