@@ -19,35 +19,42 @@ src/declarative_floorplan/
 ├── __init__.py              # Public API exports
 ├── core/
 │   ├── __init__.py
-│   ├── floorplan.py         # Floorplan context manager and coordinator
-│   ├── registry.py          # Element registration and tracking
-│   └── solver.py            # Constraint solving logic
+│   ├── floorplan.py         # ✅ Floorplan context manager and coordinator
+│   └── registry.py          # ✅ Element registration and tracking
 ├── geometry/
 │   ├── __init__.py
-│   ├── vertex.py            # Vertex class with constraint support
-│   ├── constraints.py       # HorizontalConstraint, VerticalConstraint
-│   └── utils.py             # Geometric calculations (distance, angles, etc.)
+│   ├── vertex.py            # ✅ Vertex class with constraint support
+│   └── constraints.py       # ✅ HorizontalConstraint, VerticalConstraint
 ├── elements/
 │   ├── __init__.py
-│   ├── base.py              # Base class for all floorplan elements
-│   ├── wall.py              # Wall element
-│   ├── door.py              # Door element
-│   ├── window.py            # Window element
-│   └── opening.py           # Base class for Door/Window (shared behavior)
+│   ├── base.py              # ✅ Base class for all floorplan elements
+│   ├── wall.py              # ✅ Wall element
+│   ├── door.py              # ✅ Door element
+│   ├── window.py            # ✅ Window element
+│   └── opening.py           # ✅ Base class for Door/Window (shared behavior)
 ├── positioning/
 │   ├── __init__.py
-│   ├── position.py          # Position enum (CENTERED, START, END, etc.)
-│   └── calculator.py        # Calculate positions along walls
-├── rendering/
-│   ├── __init__.py
-│   ├── svg.py               # SVG generation engine
-│   ├── styles.py            # Style definitions for different elements
-│   └── templates.py         # SVG templates and patterns
-└── utils/
+│   └── position.py          # ✅ Position enum (CENTERED, START, END, etc.)
+└── rendering/
     ├── __init__.py
-    ├── validation.py        # Input validation
-    └── exceptions.py        # Custom exceptions
+    ├── svg.py               # ✅ SVG generation engine
+    ├── raster.py            # ✅ PNG/raster rendering (CairoSVG + Pillow)
+    └── styles.py            # ✅ Style definitions (RenderConfig, ElementStyle)
+
+examples/
+├── simple_room/             # ✅ Basic room example
+├── real_apartment/          # ✅ Complex apartment layout
+└── gemeni_pro_2025_11_03/   # ✅ AI-generated floorplan example
+
+mcp-servers/
+└── visual-cot/              # ✅ MCP server for constraint visualization
+
+render_examples.py           # ✅ Batch rendering script for all examples
 ```
+
+**Legend:**
+- ✅ = Implemented
+- ⏸️ = Planned but not yet implemented
 
 ---
 
@@ -222,47 +229,40 @@ class Opening(FloorplanElement):
 
 **Classes**:
 - `Door`: Opening with door-specific rendering (swing arc, panel, etc.)
-- `DoorStyle`: Enum for different door types
-
-**Enums**:
-```python
-class DoorStyle(Enum):
-    SWING_LEFT = "swing_left"
-    SWING_RIGHT = "swing_right"
-    SLIDING = "sliding"
-    DOUBLE = "double"
-    POCKET = "pocket"
-```
 
 **Key Attributes**:
 ```python
 class Door(Opening):
-    style: DoorStyle = DoorStyle.SWING_LEFT
-    swing_angle: float = 90.0  # Degrees
+    wall: Wall              # Wall the door is placed on
+    position: float | Position  # Position along the wall
+    width: float            # Door width
+    # Future: style, swing_angle, hinge_side
 ```
+
+**Rendering**:
+- Draws door opening line across the wall
+- Renders door panel as a line
+- Draws 90-degree swing arc to show door clearance
 
 #### `elements/window.py`
 **Purpose**: Window element
 
 **Classes**:
 - `Window`: Opening with window-specific rendering (panes, frame, etc.)
-- `WindowStyle`: Enum for different window types
-
-**Enums**:
-```python
-class WindowStyle(Enum):
-    REGULAR = "regular"
-    CASEMENT = "casement"
-    SLIDING = "sliding"
-    BAY = "bay"
-```
 
 **Key Attributes**:
 ```python
 class Window(Opening):
-    style: WindowStyle = WindowStyle.REGULAR
-    panes: int = 1
+    wall: Wall              # Wall the window is placed on
+    position: float | Position  # Position along the wall
+    width: float            # Window width
+    # Future: style, panes, sill_depth
 ```
+
+**Rendering**:
+- Draws window frame as a rectangle
+- Renders glass pane with center line
+- Uses distinct styling from walls and doors
 
 ---
 
@@ -346,16 +346,29 @@ class StyleSheet:
     VERTEX_DEBUG: ElementStyle
 ```
 
-#### `rendering/templates.py`
-**Purpose**: SVG templates and reusable patterns
+#### `rendering/raster.py`
+**Purpose**: Convert floorplans to raster formats (PNG, etc.)
 
-**Functions**:
+**Classes**:
+- `RasterRenderer`: Converts SVG to PNG/raster formats
+
+**Key Methods**:
 ```python
-def svg_document_template(viewbox: str, content: str) -> str
-def wall_polygon(points: List[Tuple[float, float]], style: ElementStyle) -> str
-def door_swing_arc(center, radius, start_angle, end_angle, style: ElementStyle) -> str
-def window_panes(bounds, panes: int, style: ElementStyle) -> str
+class RasterRenderer:
+    def __init__(self, floorplan: Floorplan, config: Optional[RenderConfig] = None)
+
+    def render_to_png(self, output_path: str, dpi: int = 300) -> None:
+        """Generate PNG file from floorplan"""
+
+    def render_to_bytes(self, format: str = "PNG", dpi: int = 300) -> bytes:
+        """Generate raster image as bytes"""
 ```
+
+**Implementation Details**:
+- Uses SVGRenderer to generate SVG first
+- Converts SVG to PNG using CairoSVG
+- Uses Pillow (PIL) for additional image processing
+- Supports high-DPI rendering for print quality
 
 ---
 
@@ -408,23 +421,28 @@ from declarative_floorplan.geometry.constraints import (
     VerticalConstraint,
 )
 from declarative_floorplan.elements.wall import Wall
-from declarative_floorplan.elements.door import Door, DoorStyle
-from declarative_floorplan.elements.window import Window, WindowStyle
+from declarative_floorplan.elements.door import Door
+from declarative_floorplan.elements.window import Window
 from declarative_floorplan.positioning.position import Position
+from declarative_floorplan.rendering.styles import ElementStyle, RenderConfig
+
+__version__ = "0.1.0"
 
 __all__ = [
     "Floorplan",
     "Vertex",
-    "HorizontalConstraint",
-    "VerticalConstraint",
     "Wall",
     "Door",
-    "DoorStyle",
     "Window",
-    "WindowStyle",
+    "HorizontalConstraint",
+    "VerticalConstraint",
     "Position",
+    "RenderConfig",
+    "ElementStyle",
 ]
 ```
+
+**Note**: Door/Window styles (DoorStyle, WindowStyle) are not yet implemented and are currently planned for future enhancement.
 
 ---
 
@@ -458,46 +476,56 @@ with Floorplan("Room Name") as fp:
     fp.generate_svg("output.svg")
 ```
 
-### Complex Floorplan Pattern (model_svg.py)
-- Reuse constraints across multiple vertices
+### Complex Floorplan Pattern
+- Reuse constraints across multiple vertices (efficient and maintains alignment)
 - Build complex polygon shapes with 5+ vertices
-- Share constraints to ensure alignment
+- Share constraints between rooms to ensure proper alignment
 - Add multiple doors and windows with precise positioning
+- Use numeric positions for exact placement, Position enums for semantic placement
+
+See `examples/real_apartment/model.py` for a complete example of a multi-room apartment.
 
 ---
 
-## Implementation Phases
+## Implementation Status
 
-### Phase 1: Core Geometry
-- [ ] `geometry/constraints.py` - HC, VC classes
-- [ ] `geometry/vertex.py` - Vertex with constraint support
-- [ ] `core/solver.py` - Basic constraint solver
-- [ ] `geometry/utils.py` - Basic geometric utilities
+### ✅ Phase 1: Core Geometry (COMPLETED)
+- ✅ `geometry/constraints.py` - HC, VC classes
+- ✅ `geometry/vertex.py` - Vertex with constraint support
+- ⏸️ `core/solver.py` - Constraint solving (currently inline in vertex)
+- ⏸️ `geometry/utils.py` - Geometric utilities (currently inline in elements)
 
-### Phase 2: Basic Elements
-- [ ] `elements/base.py` - FloorplanElement base class
-- [ ] `elements/wall.py` - Wall implementation
-- [ ] `core/registry.py` - Element registration
-- [ ] `core/floorplan.py` - Basic Floorplan context manager
+### ✅ Phase 2: Basic Elements (COMPLETED)
+- ✅ `elements/base.py` - FloorplanElement base class
+- ✅ `elements/wall.py` - Wall implementation
+- ✅ `core/registry.py` - Element registration
+- ✅ `core/floorplan.py` - Floorplan context manager
 
-### Phase 3: Openings
-- [ ] `positioning/position.py` - Position enum
-- [ ] `positioning/calculator.py` - Position calculations
-- [ ] `elements/opening.py` - Opening base class
-- [ ] `elements/door.py` - Door implementation
-- [ ] `elements/window.py` - Window implementation
+### ✅ Phase 3: Openings (COMPLETED)
+- ✅ `positioning/position.py` - Position enum
+- ✅ `elements/opening.py` - Opening base class
+- ✅ `elements/door.py` - Door implementation with swing arcs
+- ✅ `elements/window.py` - Window implementation
+- ⏸️ `positioning/calculator.py` - Position calculations (currently inline in opening)
 
-### Phase 4: Rendering
-- [ ] `rendering/styles.py` - Style definitions
-- [ ] `rendering/templates.py` - SVG templates
-- [ ] `rendering/svg.py` - SVG renderer
+### ✅ Phase 4: Rendering (COMPLETED)
+- ✅ `rendering/styles.py` - RenderConfig and ElementStyle classes
+- ✅ `rendering/svg.py` - Complete SVG renderer
+- ✅ `rendering/raster.py` - PNG/raster rendering (CairoSVG + Pillow)
 
-### Phase 5: Polish
-- [ ] `utils/validation.py` - Input validation
-- [ ] `utils/exceptions.py` - Custom exceptions
-- [ ] Type hints throughout
-- [ ] Documentation and docstrings
-- [ ] Unit tests
+### 🚧 Phase 5: Polish (IN PROGRESS)
+- ⏸️ `utils/validation.py` - Input validation (basic validation inline)
+- ⏸️ `utils/exceptions.py` - Custom exceptions
+- ✅ Type hints throughout
+- 🚧 Documentation and docstrings (partially complete)
+- ⏸️ Unit tests
+
+### ✅ Additional Features (COMPLETED)
+- ✅ `examples/` - Multiple working examples
+- ✅ `render_examples.py` - Batch rendering script
+- ✅ `mcp-servers/visual-cot/` - MCP server for constraint visualization
+- ✅ `RENDERING_GUIDE.md` - Comprehensive rendering documentation
+- ✅ `VVLM_PROMPT.md` - AI-assisted generation prompt template
 
 ---
 
@@ -535,26 +563,91 @@ with Floorplan("Room Name") as fp:
 
 ---
 
+## Tools and Utilities
+
+### render_examples.py
+A batch rendering script that automates the process of rendering all example floorplans.
+
+**Features**:
+- Automatically discovers all `model.py` files in `examples/`
+- Imports the Floorplan object from each model
+- Generates both SVG and PNG outputs
+- Optionally creates visualization overlays:
+  - **Constraint overlays**: Draws HC/VC lines on the original image
+  - **Floorplan overlays**: Renders the generated floorplan over the original image
+
+**Usage**:
+```bash
+uv run python render_examples.py
+```
+
+**Use Cases**:
+- Batch processing of all examples
+- Visual comparison with source images
+- Debugging constraint placement
+- Creating presentation materials
+
+### MCP Server (visual-cot)
+An MCP (Model Context Protocol) server that provides visual debugging tools.
+
+**Location**: `mcp-servers/visual-cot/`
+
+**Tools Provided**:
+
+1. **draw_constraints**
+   - Extracts HC/VC constraints from a model file
+   - Draws constraint lines overlaid on the original image
+   - Useful for verifying constraint placement accuracy
+   - Helps visualize the "invisible" constraint grid
+
+2. **overlay_floorplan**
+   - Renders a floorplan model
+   - Overlays the rendered result on the original image
+   - Allows visual comparison between generated and source
+   - Supports adjustable overlay opacity
+
+**Integration**:
+- Automatically available in Claude Code when working in this project
+- Used by `render_examples.py` for overlay generation
+- Can be called programmatically from Python code
+
+**Benefits**:
+- Debug constraint placement visually
+- Compare generated floorplans with source images
+- Verify model accuracy before finalizing
+- Educational tool for understanding constraint-based design
+
+---
+
 ## Future Enhancements
 
 1. **Additional Elements**: Furniture, fixtures, dimensions, labels
-2. **Advanced Constraints**: Distance, angle, parallel, perpendicular
+2. **Advanced Constraints**: Distance, angle, parallel, perpendicular constraints
 3. **Room Detection**: Automatically identify enclosed spaces
 4. **Measurements**: Auto-generate dimension lines
 5. **Multiple Floors**: Support for multi-story buildings
-6. **Export Formats**: PNG, PDF, DXF, etc.
+6. **Export Formats**: PDF, DXF, etc. (PNG already supported via `raster.py`)
 7. **Interactive Editing**: Integration with web viewers
 8. **Parametric Design**: Variables and formulas in constraints
 9. **Library of Components**: Pre-built room templates
-10. **Validation**: Check for overlapping elements, impossible constraints
+10. **Validation**: Check for overlapping elements, impossible constraints (via `utils/`)
+11. **External Wall Detection**: Automatically distinguish internal/external walls
+12. **Theme System**: Named style presets (blueprint, modern, sketch, etc.)
 
 ---
 
 ## Dependencies
 
-Based on the examples, minimal external dependencies:
-- **Core**: Python 3.12+ (uses modern type hints)
-- **Optional**:
-  - `cairosvg` - For PNG/PDF export
-  - `pydantic` - For data validation
-  - `pytest` - For testing
+**Required**:
+- **Python 3.12+**: Uses modern type hints and language features
+- **CairoSVG** (>=2.8.2): SVG to PNG conversion in `rendering/raster.py`
+- **Pillow** (>=10.0.0): Image processing and manipulation
+
+**Development**:
+- **uv**: Fast Python package manager and dependency resolver
+- **visual-cot-mcp**: MCP server for constraint visualization (dev dependency)
+- **ruff**: Code formatting (recommended)
+
+**Future**:
+- **pytest**: Unit testing framework (not yet implemented)
+- **pydantic**: Data validation (not yet implemented)
