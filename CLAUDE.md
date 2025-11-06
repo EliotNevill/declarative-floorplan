@@ -56,6 +56,7 @@ uv run pytest
 uv run pytest --cov=declarative_floorplan
 ```
 
+
 ## Project Structure
 
 - **src/declarative_floorplan/**: Main package directory (src-layout)

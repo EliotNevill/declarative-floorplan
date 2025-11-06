@@ -9,8 +9,17 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "cairosvg>=2.8.2",
+    "pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "visual-cot-mcp",
 ]
 
 [build-system]
 requires = ["uv_build>=0.9.5,<0.10.0"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+visual-cot-mcp = { path = "mcp-servers/visual-cot", editable = true }

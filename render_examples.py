@@ -1,20 +1,29 @@
 #!/usr/bin/env python3
 """
-Render all example floorplans to PNG.
+Render all example floorplans to PNG with optional overlays.
 
 This script:
 1. Finds all model.py files in the examples directory
 2. Imports the Floorplan object from each model.py
-3. Renders the floorplan to SVG
-4. Converts the SVG to PNG using cairosvg
+3. Renders the floorplan to SVG and PNG
+4. Optionally generates constraint overlays (constraints on image)
+5. Optionally generates floorplan overlays (rendered floorplan on original image)
 """
 
 import sys
 from pathlib import Path
 from importlib.util import spec_from_file_location, module_from_spec
 
-import cairosvg
+from PIL import Image
 from declarative_floorplan.rendering.svg import SVGRenderer
+from declarative_floorplan.rendering.raster import RasterRenderer
+
+# Import overlay functions from visual-cot-mcp
+from visual_cot_mcp import (
+    extract_constraints_from_floorplan,
+    draw_constraints_on_image,
+    overlay_floorplan_on_image,
+)
 
 
 def find_example_models(examples_dir: Path) -> list[Path]:
@@ -66,55 +75,91 @@ def load_floorplan_from_model(model_path: Path):
     raise ValueError(f"No Floorplan object found in {model_path}")
 
 
-def render_floorplan_to_png(floorplan, output_path: Path) -> None:
+def render_floorplan_to_png(floorplan, output_path: Path) -> Image.Image:
     """
-    Render a floorplan to PNG.
+    Render a floorplan to PNG using RasterRenderer.
 
     Args:
         floorplan: The Floorplan object
         output_path: Path where the PNG should be saved
+
+    Returns:
+        PIL Image of the rendered floorplan
     """
-    # Generate SVG string
-    renderer = SVGRenderer(floorplan)
-    svg_content = renderer.render()
+    # Create renderers
+    svg_renderer = SVGRenderer(floorplan)
+    raster_renderer = RasterRenderer(svg_renderer)
 
-    # Extract viewBox dimensions from SVG to maintain aspect ratio
-    import re
-    viewbox_match = re.search(r'viewBox="([^"]+)"', svg_content)
+    # Render to PIL Image and save
+    image = raster_renderer.render(background_color='white')
+    image.save(str(output_path))
 
-    if viewbox_match:
-        # Parse viewBox: "x y width height"
-        viewbox_parts = viewbox_match.group(1).split()
-        if len(viewbox_parts) == 4:
-            vb_width = float(viewbox_parts[2])
-            vb_height = float(viewbox_parts[3])
+    print(f"✓ Rendered PNG: {output_path} ({image.width}x{image.height})")
+    return image
 
-            # Scale to a reasonable size while maintaining aspect ratio
-            # Target max dimension of 1200px
-            max_dimension = 1200
-            scale = min(max_dimension / vb_width, max_dimension / vb_height)
 
-            output_width = int(vb_width * scale)
-            output_height = int(vb_height * scale)
-        else:
-            # Fallback to default
-            output_width = 1200
-            output_height = None
+def generate_overlays(floorplan, example_dir: Path) -> None:
+    """
+    Generate constraint and floorplan overlays for an example.
+
+    Args:
+        floorplan: The Floorplan object
+        example_dir: Path to the example directory
+    """
+    input_image = example_dir / "input.png"
+    has_input_image = input_image.exists()
+
+    # Extract constraints
+    constraints = extract_constraints_from_floorplan(floorplan)
+    h_count = len(constraints['horizontal'])
+    v_count = len(constraints['vertical'])
+
+    if h_count == 0 and v_count == 0:
+        print("  ⊘ No constraints found, skipping overlay generation")
+        return
+
+    print(f"  Found {h_count} horizontal and {v_count} vertical constraints")
+
+    # Determine base image for constraints overlay
+    if has_input_image:
+        base_image_path = input_image
+        base_image_desc = "input image"
     else:
-        # Fallback to default
-        output_width = 1200
-        output_height = None
+        # Use the rendered output as base
+        base_image_path = example_dir / "output.png"
+        base_image_desc = "rendered output"
 
-    # Convert SVG to PNG using cairosvg
-    cairosvg.svg2png(
-        bytestring=svg_content.encode('utf-8'),
-        write_to=str(output_path),
-        output_width=output_width,
-        output_height=output_height,
-        background_color='white'
-    )
+        if not base_image_path.exists():
+            print("  ⊘ No base image available for overlays")
+            return
 
-    print(f"✓ Rendered: {output_path} ({output_width}x{output_height})")
+    # Generate constraints overlay
+    try:
+        constraints_output = example_dir / "constraints_overlay.png"
+        result = draw_constraints_on_image(
+            floorplan=floorplan,
+            image_path=str(base_image_path),
+            draw_horizontal=True,
+            draw_vertical=True
+        )
+        result.save(str(constraints_output))
+        print(f"✓ Constraints overlay: {constraints_output.name} (on {base_image_desc})")
+    except Exception as e:
+        print(f"✗ Error generating constraints overlay: {e}")
+
+    # Generate floorplan overlay (only if we have an input image)
+    if has_input_image:
+        try:
+            overlay_output = example_dir / "floorplan_overlay.png"
+            result = overlay_floorplan_on_image(
+                floorplan=floorplan,
+                image_path=str(input_image),
+                overlay_opacity=0.6
+            )
+            result.save(str(overlay_output))
+            print(f"✓ Floorplan overlay: {overlay_output.name}")
+        except Exception as e:
+            print(f"✗ Error generating floorplan overlay: {e}")
 
 
 def main():
@@ -134,7 +179,13 @@ def main():
         print("No model.py files found in examples directory")
         sys.exit(1)
 
-    print(f"Found {len(model_files)} example(s) to render:\n")
+    # Count examples with input images
+    examples_with_images = sum(1 for model in model_files if (model.parent / "input.png").exists())
+
+    print(f"Found {len(model_files)} example(s) to render:")
+    print(f"  - {examples_with_images} with input images (will generate overlays)")
+    print(f"  - {len(model_files) - examples_with_images} without input images")
+    print()
 
     # Process each example
     success_count = 0
@@ -142,26 +193,35 @@ def main():
 
     for model_path in sorted(model_files):
         example_name = model_path.parent.name
-        print(f"Processing: {example_name}")
+        example_dir = model_path.parent
+        has_input = "✓" if (example_dir / "input.png").exists() else "✗"
+
+        print(f"Processing: {example_name} {has_input}")
 
         try:
             # Load the floorplan
             floorplan = load_floorplan_from_model(model_path)
 
             # Generate output paths
-            svg_output = model_path.parent / "output.svg"
-            png_output = model_path.parent / "output.png"
+            svg_output = example_dir / "output.svg"
+            png_output = example_dir / "output.png"
 
             # Render SVG
             floorplan.generate_svg(str(svg_output))
+            print(f"✓ Rendered SVG: {svg_output.name}")
 
             # Render PNG
             render_floorplan_to_png(floorplan, png_output)
+
+            # Generate overlays
+            generate_overlays(floorplan, example_dir)
 
             success_count += 1
 
         except Exception as e:
             print(f"✗ Error processing {example_name}: {e}")
+            import traceback
+            traceback.print_exc()
             error_count += 1
 
         print()  # Blank line between examples

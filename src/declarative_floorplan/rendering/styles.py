@@ -1,7 +1,15 @@
 """Style configuration for SVG rendering."""
 
 from dataclasses import dataclass
-from typing import Optional
+from enum import Enum
+from typing import Optional, Tuple
+
+
+class RenderMode(Enum):
+    """Rendering mode for SVG output."""
+
+    FULL = "full"  # Render all elements (walls, doors, windows)
+    CONSTRAINTS_ONLY = "constraints_only"  # Render only constraint lines
 
 
 @dataclass
@@ -38,6 +46,9 @@ class ElementStyle:
 class RenderConfig:
     """Configuration for SVG rendering."""
 
+    # Rendering mode
+    render_mode: RenderMode = RenderMode.FULL
+
     # Wall styles
     wall_internal: ElementStyle = None
     wall_external: ElementStyle = None
@@ -57,6 +68,12 @@ class RenderConfig:
 
     # Viewbox settings
     viewbox_padding: float = 20.0
+    viewbox_override: Optional[Tuple[float, float, float, float]] = None
+
+    # Constraint rendering settings
+    constraint_line_color: str = "red"
+    constraint_line_width: float = 2.0
+    constraint_opacity: float = 0.8
 
     def __post_init__(self):
         """Initialize default styles if not provided."""

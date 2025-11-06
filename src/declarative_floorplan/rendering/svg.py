@@ -7,7 +7,8 @@ from declarative_floorplan.core.floorplan import Floorplan
 from declarative_floorplan.elements.door import Door
 from declarative_floorplan.elements.wall import Wall
 from declarative_floorplan.elements.window import Window
-from declarative_floorplan.rendering.styles import DEFAULT_CONFIG, RenderConfig
+from declarative_floorplan.geometry.constraints import HorizontalConstraint, VerticalConstraint
+from declarative_floorplan.rendering.styles import DEFAULT_CONFIG, RenderConfig, RenderMode
 
 
 class SVGRenderer:
@@ -36,23 +37,35 @@ class SVGRenderer:
         # Calculate viewBox
         viewbox = self._calculate_viewbox()
 
-        # Render elements
-        walls_svg = self._render_walls()
-        openings_svg = self._render_openings()
-
         # Build SVG document
         svg = '<?xml version="1.0" encoding="UTF-8"?>\n'
         svg += '<svg xmlns="http://www.w3.org/2000/svg" '
         svg += f'viewBox="{viewbox[0]} {viewbox[1]} {viewbox[2]} {viewbox[3]}">\n'
         svg += f'  <title>{self.floorplan.name}</title>\n'
-        # Add white background
-        svg += f'  <rect x="{viewbox[0]}" y="{viewbox[1]}" width="{viewbox[2]}" height="{viewbox[3]}" fill="#ffffff"/>\n'
-        svg += '  <g id="walls">\n'
-        svg += walls_svg
-        svg += '  </g>\n'
-        svg += '  <g id="openings">\n'
-        svg += openings_svg
-        svg += '  </g>\n'
+
+        # Handle different render modes
+        if self.config.render_mode == RenderMode.CONSTRAINTS_ONLY:
+            # Render only constraints on transparent background
+            constraints_svg = self._render_constraints()
+            svg += '  <g id="constraints">\n'
+            svg += constraints_svg
+            svg += '  </g>\n'
+        else:
+            # Full rendering: background, walls, openings
+            # Add white background
+            svg += f'  <rect x="{viewbox[0]}" y="{viewbox[1]}" width="{viewbox[2]}" height="{viewbox[3]}" fill="#ffffff"/>\n'
+
+            # Render elements
+            walls_svg = self._render_walls()
+            openings_svg = self._render_openings()
+
+            svg += '  <g id="walls">\n'
+            svg += walls_svg
+            svg += '  </g>\n'
+            svg += '  <g id="openings">\n'
+            svg += openings_svg
+            svg += '  </g>\n'
+
         svg += '</svg>'
 
         return svg
@@ -66,6 +79,10 @@ class SVGRenderer:
         Returns:
             Tuple of (0, 0, width, height)
         """
+        # Check if viewbox_override is set
+        if self.config.viewbox_override is not None:
+            return self.config.viewbox_override
+
         vertices = self.floorplan.registry.get_vertices()
 
         if not vertices:
@@ -313,5 +330,46 @@ class SVGRenderer:
         svg += f'stroke="{self.config.window_glass_stroke}" stroke-width="{self.config.window_glass_stroke_width}" />\n'
 
         svg += '</g>'
+
+        return svg
+
+    def _render_constraints(self) -> str:
+        """
+        Render constraint lines.
+
+        Returns:
+            SVG string for constraints
+        """
+        # Extract unique constraints from the floorplan
+        h_constraints = set()
+        v_constraints = set()
+
+        for vertex in self.floorplan.registry.get_vertices():
+            for constraint in vertex.constraints:
+                if isinstance(constraint, HorizontalConstraint):
+                    h_constraints.add(int(constraint.get_value()))
+                elif isinstance(constraint, VerticalConstraint):
+                    v_constraints.add(int(constraint.get_value()))
+
+        # Get viewbox for line dimensions
+        viewbox = self._calculate_viewbox()
+        width = viewbox[2]
+        height = viewbox[3]
+
+        svg = ""
+
+        # Draw horizontal constraints
+        for y_coord in sorted(h_constraints):
+            svg += f'    <line x1="0" y1="{y_coord}" x2="{width}" y2="{y_coord}" '
+            svg += f'stroke="{self.config.constraint_line_color}" '
+            svg += f'stroke-width="{self.config.constraint_line_width}" '
+            svg += f'opacity="{self.config.constraint_opacity}"/>\n'
+
+        # Draw vertical constraints
+        for x_coord in sorted(v_constraints):
+            svg += f'    <line x1="{x_coord}" y1="0" x2="{x_coord}" y2="{height}" '
+            svg += f'stroke="{self.config.constraint_line_color}" '
+            svg += f'stroke-width="{self.config.constraint_line_width}" '
+            svg += f'opacity="{self.config.constraint_opacity}"/>\n'
 
         return svg

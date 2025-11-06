@@ -26,7 +26,7 @@ from typing import Any
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent, ImageContent
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 
 # Initialize the MCP server
@@ -169,74 +169,43 @@ def extract_constraints_from_floorplan(floorplan) -> dict[str, list[tuple[str, i
 
 
 def draw_constraints_on_image(
+    floorplan,
     image_path: str,
-    constraints: dict[str, list[tuple[str, int]]],
     draw_horizontal: bool = True,
     draw_vertical: bool = True,
-    line_color: str = "red",
-    line_width: int = 2,
-    show_labels: bool = True,
-    label_color: str = "red"
 ) -> Image.Image:
     """
-    Draw constraints on the image.
+    Draw constraints on the image using SVGRenderer and RasterRenderer.
 
     Args:
+        floorplan: The Floorplan object to extract constraints from
         image_path: Path to the base image
-        constraints: Dict with 'horizontal' and 'vertical' constraint lists
-        draw_horizontal: Whether to draw horizontal constraints
-        draw_vertical: Whether to draw vertical constraints
-        line_color: Color for constraint lines
-        line_width: Width of constraint lines
-        show_labels: Whether to show constraint labels
-        label_color: Color for constraint labels
+        draw_horizontal: Whether to draw horizontal constraints (not currently used)
+        draw_vertical: Whether to draw vertical constraints (not currently used)
 
     Returns:
         PIL Image with constraints drawn
     """
-    # Load the image
-    img = Image.open(image_path).convert('RGBA')
+    from declarative_floorplan.rendering.svg import SVGRenderer
+    from declarative_floorplan.rendering.raster import RasterRenderer
+    from declarative_floorplan.rendering.styles import RenderConfig, RenderMode
 
-    # Create a transparent overlay
-    overlay = Image.new('RGBA', img.size, (255, 255, 255, 0))
-    draw = ImageDraw.Draw(overlay)
+    # Load the base image
+    base_img = Image.open(image_path).convert('RGBA')
 
-    # Try to use a better font
-    try:
-        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 14)
-    except (OSError, IOError):
-        font = ImageFont.load_default()
+    # Create config for constraints-only rendering with matching dimensions
+    config = RenderConfig(
+        render_mode=RenderMode.CONSTRAINTS_ONLY,
+        viewbox_override=(0, 0, base_img.width, base_img.height)
+    )
 
-    # Draw horizontal constraints
-    if draw_horizontal:
-        for var_name, y_coord in constraints['horizontal']:
-            # Draw line
-            draw.line([(0, y_coord), (img.width, y_coord)], fill=line_color, width=line_width)
+    # Render constraints using RasterRenderer
+    svg_renderer = SVGRenderer(floorplan, config=config)
+    raster_renderer = RasterRenderer(svg_renderer)
+    constraints_img = raster_renderer.render(background_color=None).convert('RGBA')
 
-            # Draw label
-            if show_labels:
-                label = f"{var_name} (y={y_coord})"
-                # Draw background for text
-                bbox = draw.textbbox((5, y_coord + 5), label, font=font)
-                draw.rectangle(bbox, fill=(255, 255, 255, 180))
-                draw.text((5, y_coord + 5), label, fill=label_color, font=font)
-
-    # Draw vertical constraints
-    if draw_vertical:
-        for var_name, x_coord in constraints['vertical']:
-            # Draw line
-            draw.line([(x_coord, 0), (x_coord, img.height)], fill=line_color, width=line_width)
-
-            # Draw label
-            if show_labels:
-                label = f"{var_name} (x={x_coord})"
-                # Draw background for text
-                bbox = draw.textbbox((x_coord + 5, 5), label, font=font)
-                draw.rectangle(bbox, fill=(255, 255, 255, 180))
-                draw.text((x_coord + 5, 5), label, fill=label_color, font=font)
-
-    # Composite the overlay onto the original image
-    result = Image.alpha_composite(img, overlay)
+    # Composite the constraints layer onto the base image
+    result = Image.alpha_composite(base_img, constraints_img)
 
     return result.convert('RGB')
 
@@ -254,30 +223,27 @@ def overlay_floorplan_on_image(
         floorplan: The Floorplan object to render
         image_path: Path to the base image
         overlay_opacity: Opacity of the floorplan overlay (0.0 to 1.0)
-        line_color: Color for the floorplan rendering
+        line_color: Color for the floorplan rendering (not currently used)
 
     Returns:
         PIL Image with floorplan overlaid
     """
     from declarative_floorplan.rendering.svg import SVGRenderer
-    import cairosvg
+    from declarative_floorplan.rendering.raster import RasterRenderer
+    from declarative_floorplan.rendering.styles import RenderConfig
 
     # Load the base image
     base_img = Image.open(image_path).convert('RGBA')
 
-    # Render the floorplan to SVG
-    renderer = SVGRenderer(floorplan)
-    svg_content = renderer.render()
-
-    # Convert SVG to PNG with same size as base image
-    floorplan_png = cairosvg.svg2png(
-        bytestring=svg_content.encode('utf-8'),
-        output_width=base_img.width,
-        output_height=base_img.height
+    # Create config with viewbox override to match base image size
+    config = RenderConfig(
+        viewbox_override=(0, 0, base_img.width, base_img.height)
     )
 
-    # Load the rendered floorplan as an image
-    floorplan_img = Image.open(BytesIO(floorplan_png)).convert('RGBA')
+    # Render the floorplan using RasterRenderer
+    svg_renderer = SVGRenderer(floorplan, config=config)
+    raster_renderer = RasterRenderer(svg_renderer)
+    floorplan_img = raster_renderer.render(background_color=None).convert('RGBA')
 
     # Adjust opacity of the floorplan
     alpha = floorplan_img.split()[3]
@@ -390,30 +356,24 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent | ImageConten
         output_path = arguments.get("output_path")
         draw_horizontal = arguments.get("draw_horizontal", True)
         draw_vertical = arguments.get("draw_vertical", True)
-        line_color = arguments.get("line_color", "red")
-        line_width = arguments.get("line_width", 2)
-        show_labels = arguments.get("show_labels", True)
 
         try:
             # Load the floorplan from the model file
             floorplan = load_floorplan_from_model(model_file_path)
 
-            # Extract constraints from the floorplan
+            # Extract constraints from the floorplan for counting
             constraints = extract_constraints_from_floorplan(floorplan)
 
             # Count constraints
-            h_count = len(constraints['horizontal'])
-            v_count = len(constraints['vertical'])
+            h_count = len(constraints['horizontal']) if draw_horizontal else 0
+            v_count = len(constraints['vertical']) if draw_vertical else 0
 
-            # Draw constraints on image
+            # Draw constraints on image using SVGRenderer
             result_image = draw_constraints_on_image(
+                floorplan=floorplan,
                 image_path=image_path,
-                constraints=constraints,
                 draw_horizontal=draw_horizontal,
-                draw_vertical=draw_vertical,
-                line_color=line_color,
-                line_width=line_width,
-                show_labels=show_labels
+                draw_vertical=draw_vertical
             )
 
             # Save if output path provided
@@ -431,7 +391,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent | ImageConten
             # Create summary text
             summary = (
                 f"Drew {h_count} horizontal and {v_count} vertical constraints "
-                f"from {model_file_path} on {image_path}.{saved_msg}"
+                f"from {model_file_path} on {image_path} using SVGRenderer.{saved_msg}"
             )
 
             return [
