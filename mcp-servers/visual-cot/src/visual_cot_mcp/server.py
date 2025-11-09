@@ -14,246 +14,25 @@ This MCP server provides tools to visualize floorplan generation steps
 by overlaying constraints and other elements on the original image.
 """
 
-import ast
 import base64
-import re
-import sys
 from io import BytesIO
-from importlib.util import spec_from_file_location, module_from_spec
-from pathlib import Path
 from typing import Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent, ImageContent
-from PIL import Image
+
+# Import overlay functions from declarative_floorplan
+from declarative_floorplan.rendering.overlays import (
+    load_floorplan_from_model,
+    extract_constraints_from_floorplan,
+    draw_constraints_on_image,
+    overlay_floorplan_on_image,
+)
 
 
 # Initialize the MCP server
 app = Server("visual-cot")
-
-
-def load_floorplan_from_model(model_path: str):
-    """
-    Import a model.py file and extract the Floorplan object.
-
-    Args:
-        model_path: Path to the model.py file
-
-    Returns:
-        The Floorplan object (variable name 'fp' by convention)
-    """
-    from declarative_floorplan import Floorplan
-
-    model_path_obj = Path(model_path)
-
-    # Create a unique module name based on the path
-    module_name = f"model_{model_path_obj.parent.name}_{id(model_path)}"
-
-    # Load the module
-    spec = spec_from_file_location(module_name, model_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load module from {model_path}")
-
-    module = module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-
-    # Look for the Floorplan object (usually named 'fp')
-    if hasattr(module, 'fp'):
-        return module.fp
-
-    # Fallback: search for any Floorplan instance
-    for attr_name in dir(module):
-        attr = getattr(module, attr_name)
-        if isinstance(attr, Floorplan):
-            return attr
-
-    raise ValueError(f"No Floorplan object found in {model_path}")
-
-
-def parse_constraints_from_file(file_path: str) -> dict[str, list[tuple[str, int]]]:
-    """
-    Parse a Python model file to extract constraint definitions.
-
-    Returns a dict with 'horizontal' and 'vertical' keys, each containing
-    a list of (variable_name, coordinate) tuples.
-    """
-    with open(file_path, 'r') as f:
-        content = f.read()
-
-    constraints = {
-        'horizontal': [],
-        'vertical': []
-    }
-
-    # Parse using AST for more robust extraction
-    try:
-        tree = ast.parse(content)
-
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
-                # Check if this is a constraint assignment
-                if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-                    var_name = node.targets[0].id
-
-                    # Check for HC(value) or HorizontalConstraint(value)
-                    if isinstance(node.value, ast.Call):
-                        if isinstance(node.value.func, ast.Name):
-                            func_name = node.value.func.id
-
-                            if func_name in ['HC', 'HorizontalConstraint']:
-                                if len(node.value.args) > 0 and isinstance(node.value.args[0], ast.Constant):
-                                    y_coord = node.value.args[0].value
-                                    constraints['horizontal'].append((var_name, y_coord))
-
-                            elif func_name in ['VC', 'VerticalConstraint']:
-                                if len(node.value.args) > 0 and isinstance(node.value.args[0], ast.Constant):
-                                    x_coord = node.value.args[0].value
-                                    constraints['vertical'].append((var_name, x_coord))
-    except SyntaxError:
-        # Fallback to regex if AST parsing fails
-        h_pattern = r'(\w+)\s*=\s*HC\((\d+)\)'
-        v_pattern = r'(\w+)\s*=\s*VC\((\d+)\)'
-
-        for match in re.finditer(h_pattern, content):
-            var_name, y_coord = match.groups()
-            constraints['horizontal'].append((var_name, int(y_coord)))
-
-        for match in re.finditer(v_pattern, content):
-            var_name, x_coord = match.groups()
-            constraints['vertical'].append((var_name, int(x_coord)))
-
-    return constraints
-
-
-def extract_constraints_from_floorplan(floorplan) -> dict[str, list[tuple[str, int]]]:
-    """
-    Extract constraints from a loaded Floorplan object.
-
-    Args:
-        floorplan: The Floorplan object
-
-    Returns:
-        Dict with 'horizontal' and 'vertical' constraint lists
-    """
-    from declarative_floorplan.geometry.constraints import HorizontalConstraint, VerticalConstraint
-
-    constraints = {
-        'horizontal': [],
-        'vertical': []
-    }
-
-    # Get all vertices from the floorplan
-    vertices = floorplan.registry.get_vertices()
-
-    # Track unique constraints to avoid duplicates
-    seen_h_constraints = set()
-    seen_v_constraints = set()
-
-    for vertex in vertices:
-        for constraint in vertex.constraints:
-            if isinstance(constraint, HorizontalConstraint):
-                coord = int(constraint.get_value())
-                if coord not in seen_h_constraints:
-                    # Use a generic name since we don't have the variable name
-                    constraints['horizontal'].append((f"h_{coord}", coord))
-                    seen_h_constraints.add(coord)
-            elif isinstance(constraint, VerticalConstraint):
-                coord = int(constraint.get_value())
-                if coord not in seen_v_constraints:
-                    constraints['vertical'].append((f"v_{coord}", coord))
-                    seen_v_constraints.add(coord)
-
-    return constraints
-
-
-def draw_constraints_on_image(
-    floorplan,
-    image_path: str,
-    draw_horizontal: bool = True,
-    draw_vertical: bool = True,
-) -> Image.Image:
-    """
-    Draw constraints on the image using SVGRenderer and RasterRenderer.
-
-    Args:
-        floorplan: The Floorplan object to extract constraints from
-        image_path: Path to the base image
-        draw_horizontal: Whether to draw horizontal constraints (not currently used)
-        draw_vertical: Whether to draw vertical constraints (not currently used)
-
-    Returns:
-        PIL Image with constraints drawn
-    """
-    from declarative_floorplan.rendering.svg import SVGRenderer
-    from declarative_floorplan.rendering.raster import RasterRenderer
-    from declarative_floorplan.rendering.styles import RenderConfig, RenderMode
-
-    # Load the base image
-    base_img = Image.open(image_path).convert('RGBA')
-
-    # Create config for constraints-only rendering with matching dimensions
-    config = RenderConfig(
-        render_mode=RenderMode.CONSTRAINTS_ONLY,
-        viewbox_override=(0, 0, base_img.width, base_img.height)
-    )
-
-    # Render constraints using RasterRenderer
-    svg_renderer = SVGRenderer(floorplan, config=config)
-    raster_renderer = RasterRenderer(svg_renderer)
-    constraints_img = raster_renderer.render(background_color=None).convert('RGBA')
-
-    # Composite the constraints layer onto the base image
-    result = Image.alpha_composite(base_img, constraints_img)
-
-    return result.convert('RGB')
-
-
-def overlay_floorplan_on_image(
-    floorplan,
-    image_path: str,
-    overlay_opacity: float = 0.6,
-    line_color: str = "blue"
-) -> Image.Image:
-    """
-    Render a floorplan and overlay it on the original image.
-
-    Args:
-        floorplan: The Floorplan object to render
-        image_path: Path to the base image
-        overlay_opacity: Opacity of the floorplan overlay (0.0 to 1.0)
-        line_color: Color for the floorplan rendering (not currently used)
-
-    Returns:
-        PIL Image with floorplan overlaid
-    """
-    from declarative_floorplan.rendering.svg import SVGRenderer
-    from declarative_floorplan.rendering.raster import RasterRenderer
-    from declarative_floorplan.rendering.styles import RenderConfig
-
-    # Load the base image
-    base_img = Image.open(image_path).convert('RGBA')
-
-    # Create config with viewbox override to match base image size
-    config = RenderConfig(
-        viewbox_override=(0, 0, base_img.width, base_img.height)
-    )
-
-    # Render the floorplan using RasterRenderer
-    svg_renderer = SVGRenderer(floorplan, config=config)
-    raster_renderer = RasterRenderer(svg_renderer)
-    floorplan_img = raster_renderer.render(background_color=None).convert('RGBA')
-
-    # Adjust opacity of the floorplan
-    alpha = floorplan_img.split()[3]
-    alpha = alpha.point(lambda p: int(p * overlay_opacity))
-    floorplan_img.putalpha(alpha)
-
-    # Composite the floorplan onto the base image
-    result = Image.alpha_composite(base_img, floorplan_img)
-
-    return result.convert('RGB')
 
 
 @app.list_tools()
@@ -372,16 +151,13 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent | ImageConten
             result_image = draw_constraints_on_image(
                 floorplan=floorplan,
                 image_path=image_path,
+                output_path=output_path,
                 draw_horizontal=draw_horizontal,
                 draw_vertical=draw_vertical
             )
 
-            # Save if output path provided
-            if output_path:
-                result_image.save(output_path)
-                saved_msg = f"\nSaved annotated image to: {output_path}"
-            else:
-                saved_msg = ""
+            # Build saved message
+            saved_msg = f"\nSaved annotated image to: {output_path}" if output_path else ""
 
             # Convert image to base64 for returning
             buffered = BytesIO()
@@ -428,15 +204,12 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent | ImageConten
             result_image = overlay_floorplan_on_image(
                 floorplan=floorplan,
                 image_path=image_path,
+                output_path=output_path,
                 overlay_opacity=overlay_opacity
             )
 
-            # Save if output path provided
-            if output_path:
-                result_image.save(output_path)
-                saved_msg = f"\nSaved overlaid image to: {output_path}"
-            else:
-                saved_msg = ""
+            # Build saved message
+            saved_msg = f"\nSaved overlaid image to: {output_path}" if output_path else ""
 
             # Convert image to base64 for returning
             buffered = BytesIO()

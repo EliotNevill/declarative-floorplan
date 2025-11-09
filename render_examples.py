@@ -12,14 +12,14 @@ This script:
 
 import sys
 from pathlib import Path
-from importlib.util import spec_from_file_location, module_from_spec
 
 from PIL import Image
 from declarative_floorplan.rendering.svg import SVGRenderer
 from declarative_floorplan.rendering.raster import RasterRenderer
 
-# Import overlay functions from visual-cot-mcp
-from visual_cot_mcp import (
+# Import overlay functions from overlays module
+from declarative_floorplan.rendering.overlays import (
+    load_floorplan_from_model,
     extract_constraints_from_floorplan,
     draw_constraints_on_image,
     overlay_floorplan_on_image,
@@ -37,42 +37,6 @@ def find_example_models(examples_dir: Path) -> list[Path]:
         List of paths to model.py files
     """
     return list(examples_dir.rglob("model.py"))
-
-
-def load_floorplan_from_model(model_path: Path):
-    """
-    Import a model.py file and extract the Floorplan object.
-
-    Args:
-        model_path: Path to the model.py file
-
-    Returns:
-        The Floorplan object (variable name 'fp' by convention)
-    """
-    # Create a unique module name based on the path
-    module_name = f"model_{model_path.parent.name}"
-
-    # Load the module
-    spec = spec_from_file_location(module_name, model_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load module from {model_path}")
-
-    module = module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-
-    # Look for the Floorplan object (usually named 'fp')
-    if hasattr(module, 'fp'):
-        return module.fp
-
-    # Fallback: search for any Floorplan instance
-    from declarative_floorplan import Floorplan
-    for attr_name in dir(module):
-        attr = getattr(module, attr_name)
-        if isinstance(attr, Floorplan):
-            return attr
-
-    raise ValueError(f"No Floorplan object found in {model_path}")
 
 
 def render_floorplan_to_png(floorplan, output_path: Path) -> Image.Image:
