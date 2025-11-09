@@ -2,10 +2,11 @@
 
 from typing import List, Optional, Tuple
 
+from declarative_floorplan.elements.base import FloorplanElement
 from declarative_floorplan.geometry.constraints import Constraint
 
 
-class Vertex:
+class Vertex(FloorplanElement):
     """A point in 2D space defined by constraints."""
 
     def __init__(self, name: str, constraints: List[Constraint]) -> None:
@@ -16,15 +17,9 @@ class Vertex:
             name: Human-readable name for the vertex
             constraints: List of constraints (should include HC and VC)
         """
-        self.name = name
+        super().__init__(name)
         self.constraints = constraints
         self._position: Optional[Tuple[float, float]] = None
-
-        # Register with active floorplan if in context
-        from declarative_floorplan.core.floorplan import Floorplan
-
-        if Floorplan._active_floorplan is not None:
-            Floorplan._active_floorplan.register_element(self)
 
     def get_position(self) -> Tuple[float, float]:
         """

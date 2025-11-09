@@ -32,12 +32,6 @@ class Opening(FloorplanElement):
         self.position = position
         self.width = width
 
-        # Register with active floorplan
-        from declarative_floorplan.core.floorplan import Floorplan
-
-        if Floorplan._active_floorplan is not None:
-            Floorplan._active_floorplan.register_element(self)
-
     def get_center_position(self) -> float:
         """
         Get the center position along the wall.

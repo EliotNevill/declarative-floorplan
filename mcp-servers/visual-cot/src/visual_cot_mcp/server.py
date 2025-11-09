@@ -25,10 +25,10 @@ from mcp.types import Tool, TextContent, ImageContent
 # Import overlay functions from declarative_floorplan
 from declarative_floorplan.rendering.overlays import (
     load_floorplan_from_model,
-    extract_constraints_from_floorplan,
     draw_constraints_on_image,
     overlay_floorplan_on_image,
 )
+from declarative_floorplan.geometry.constraints import HorizontalConstraint, VerticalConstraint
 
 
 # Initialize the MCP server
@@ -140,12 +140,10 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent | ImageConten
             # Load the floorplan from the model file
             floorplan = load_floorplan_from_model(model_file_path)
 
-            # Extract constraints from the floorplan for counting
-            constraints = extract_constraints_from_floorplan(floorplan)
-
-            # Count constraints
-            h_count = len(constraints['horizontal']) if draw_horizontal else 0
-            v_count = len(constraints['vertical']) if draw_vertical else 0
+            # Count constraints using registry
+            all_constraints = floorplan.registry.get_constraints()
+            h_count = sum(1 for c in all_constraints if isinstance(c, HorizontalConstraint)) if draw_horizontal else 0
+            v_count = sum(1 for c in all_constraints if isinstance(c, VerticalConstraint)) if draw_vertical else 0
 
             # Draw constraints on image using SVGRenderer
             result_image = draw_constraints_on_image(

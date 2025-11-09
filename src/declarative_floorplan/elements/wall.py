@@ -27,12 +27,6 @@ class Wall(FloorplanElement):
         self.end_vertex = end_vertex
         self.thickness = thickness
 
-        # Register with active floorplan
-        from declarative_floorplan.core.floorplan import Floorplan
-
-        if Floorplan._active_floorplan is not None:
-            Floorplan._active_floorplan.register_element(self)
-
     def length(self) -> float:
         """
         Calculate the length of the wall.

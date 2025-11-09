@@ -1,5 +1,6 @@
 """SVG rendering engine."""
 
+import logging
 import math
 from typing import Optional, Tuple
 
@@ -9,6 +10,8 @@ from declarative_floorplan.elements.wall import Wall
 from declarative_floorplan.elements.window import Window
 from declarative_floorplan.geometry.constraints import HorizontalConstraint, VerticalConstraint
 from declarative_floorplan.rendering.styles import DEFAULT_CONFIG, RenderConfig, RenderMode
+
+logger = logging.getLogger(__name__)
 
 
 class SVGRenderer:
@@ -122,6 +125,7 @@ class SVGRenderer:
             SVG string for walls
         """
         walls = self.floorplan.registry.get_walls()
+        logger.debug(f"Rendering {len(walls)} walls")
         svg = ""
 
         for wall in walls:
@@ -181,6 +185,7 @@ class SVGRenderer:
         """
         doors = self.floorplan.registry.get_doors()
         windows = self.floorplan.registry.get_windows()
+        logger.debug(f"Rendering {len(doors)} doors and {len(windows)} windows")
 
         svg = ""
 
@@ -340,16 +345,22 @@ class SVGRenderer:
         Returns:
             SVG string for constraints
         """
-        # Extract unique constraints from the floorplan
+        # Get all constraints directly from the registry
+        all_constraints = self.floorplan.registry.get_constraints()
+
+        # Track unique constraints to avoid duplicates (by value)
         h_constraints = set()
         v_constraints = set()
 
-        for vertex in self.floorplan.registry.get_vertices():
-            for constraint in vertex.constraints:
-                if isinstance(constraint, HorizontalConstraint):
-                    h_constraints.add(int(constraint.get_value()))
-                elif isinstance(constraint, VerticalConstraint):
-                    v_constraints.add(int(constraint.get_value()))
+        for constraint in all_constraints:
+            if isinstance(constraint, HorizontalConstraint):
+                h_constraints.add(int(constraint.get_value()))
+            elif isinstance(constraint, VerticalConstraint):
+                v_constraints.add(int(constraint.get_value()))
+
+        logger.debug(
+            f"Rendering constraints: {len(h_constraints)} horizontal, {len(v_constraints)} vertical"
+        )
 
         # Get viewbox for line dimensions
         viewbox = self._calculate_viewbox()

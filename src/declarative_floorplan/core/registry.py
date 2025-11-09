@@ -72,6 +72,18 @@ class ElementRegistry:
 
         return self.get_by_type(Window)
 
+    def get_constraints(self) -> List[Any]:
+        """Get all constraints (HC and VC)."""
+        from declarative_floorplan.geometry.constraints import (
+            HorizontalConstraint,
+            VerticalConstraint,
+        )
+
+        # Get both HC and VC constraints
+        h_constraints = self.get_by_type(HorizontalConstraint)
+        v_constraints = self.get_by_type(VerticalConstraint)
+        return h_constraints + v_constraints
+
     def clear(self) -> None:
         """Clear all registered elements."""
         self._elements.clear()

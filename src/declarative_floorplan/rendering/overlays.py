@@ -68,57 +68,6 @@ def load_floorplan_from_model(model_path: Union[str, Path]):
     raise ValueError(f"No Floorplan object found in {model_path}")
 
 
-def extract_constraints_from_floorplan(floorplan) -> dict[str, list[tuple[str, int]]]:
-    """Extract constraints from a loaded Floorplan object.
-
-    Args:
-        floorplan: The Floorplan object
-
-    Returns:
-        Dict with 'horizontal' and 'vertical' constraint lists.
-        Each list contains tuples of (name, coordinate).
-
-    Example:
-        >>> from declarative_floorplan.rendering.overlays import (
-        ...     load_floorplan_from_model,
-        ...     extract_constraints_from_floorplan
-        ... )
-        >>>
-        >>> fp = load_floorplan_from_model("model.py")
-        >>> constraints = extract_constraints_from_floorplan(fp)
-        >>> print(f"Found {len(constraints['horizontal'])} horizontal constraints")
-    """
-    from ..geometry.constraints import HorizontalConstraint, VerticalConstraint
-
-    constraints = {
-        'horizontal': [],
-        'vertical': []
-    }
-
-    # Get all vertices from the floorplan
-    vertices = floorplan.registry.get_vertices()
-
-    # Track unique constraints to avoid duplicates
-    seen_h_constraints = set()
-    seen_v_constraints = set()
-
-    for vertex in vertices:
-        for constraint in vertex.constraints:
-            if isinstance(constraint, HorizontalConstraint):
-                coord = int(constraint.get_value())
-                if coord not in seen_h_constraints:
-                    # Use a generic name since we don't have the variable name
-                    constraints['horizontal'].append((f"h_{coord}", coord))
-                    seen_h_constraints.add(coord)
-            elif isinstance(constraint, VerticalConstraint):
-                coord = int(constraint.get_value())
-                if coord not in seen_v_constraints:
-                    constraints['vertical'].append((f"v_{coord}", coord))
-                    seen_v_constraints.add(coord)
-
-    return constraints
-
-
 def draw_constraints_on_image(
     floorplan,
     image_path: Union[str, Path],

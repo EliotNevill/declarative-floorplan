@@ -15,5 +15,11 @@ class FloorplanElement(ABC):
         """
         self.name = name
 
+        # Register with active floorplan if in context
+        from declarative_floorplan.core.floorplan import Floorplan
+
+        if Floorplan._active_floorplan is not None:
+            Floorplan._active_floorplan.register_element(self)
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.name})"

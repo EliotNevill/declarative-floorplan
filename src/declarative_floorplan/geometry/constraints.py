@@ -1,9 +1,11 @@
 """Constraint classes for vertex positioning."""
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+
+from declarative_floorplan.elements.base import FloorplanElement
 
 
-class Constraint(ABC):
+class Constraint(FloorplanElement):
     """Abstract base class for positioning constraints."""
 
     @abstractmethod
@@ -20,14 +22,17 @@ class Constraint(ABC):
 class HorizontalConstraint(Constraint):
     """Constraint that fixes the Y coordinate (horizontal line)."""
 
-    def __init__(self, value: float) -> None:
+    def __init__(self, value: float, name: str = None) -> None:
         """
         Initialize a horizontal constraint.
 
         Args:
             value: The Y coordinate value
+            name: Optional name (defaults to "HC({value})")
         """
         self.value = value
+        # Call parent __init__ which handles registration
+        super().__init__(name or f"HC({value})")
 
     def get_value(self) -> float:
         """Return the Y coordinate."""
@@ -44,14 +49,17 @@ class HorizontalConstraint(Constraint):
 class VerticalConstraint(Constraint):
     """Constraint that fixes the X coordinate (vertical line)."""
 
-    def __init__(self, value: float) -> None:
+    def __init__(self, value: float, name: str = None) -> None:
         """
         Initialize a vertical constraint.
 
         Args:
             value: The X coordinate value
+            name: Optional name (defaults to "VC({value})")
         """
         self.value = value
+        # Call parent __init__ which handles registration
+        super().__init__(name or f"VC({value})")
 
     def get_value(self) -> float:
         """Return the X coordinate."""

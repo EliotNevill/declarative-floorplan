@@ -20,10 +20,10 @@ from declarative_floorplan.rendering.raster import RasterRenderer
 # Import overlay functions from overlays module
 from declarative_floorplan.rendering.overlays import (
     load_floorplan_from_model,
-    extract_constraints_from_floorplan,
     draw_constraints_on_image,
     overlay_floorplan_on_image,
 )
+from declarative_floorplan.geometry.constraints import HorizontalConstraint, VerticalConstraint
 
 
 def find_example_models(examples_dir: Path) -> list[Path]:
@@ -73,10 +73,10 @@ def generate_overlays(floorplan, example_dir: Path) -> None:
     input_image = example_dir / "input.png"
     has_input_image = input_image.exists()
 
-    # Extract constraints
-    constraints = extract_constraints_from_floorplan(floorplan)
-    h_count = len(constraints['horizontal'])
-    v_count = len(constraints['vertical'])
+    # Count constraints using registry
+    all_constraints = floorplan.registry.get_constraints()
+    h_count = sum(1 for c in all_constraints if isinstance(c, HorizontalConstraint))
+    v_count = sum(1 for c in all_constraints if isinstance(c, VerticalConstraint))
 
     if h_count == 0 and v_count == 0:
         print("  ⊘ No constraints found, skipping overlay generation")
