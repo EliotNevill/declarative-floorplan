@@ -23,3 +23,6 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 visual-cot-mcp = { path = "mcp-servers/visual-cot", editable = true }
+
+[tool.uv]
+config-settings = { editable_mode = "compat" }

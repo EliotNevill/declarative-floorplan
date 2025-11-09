@@ -1,0 +1,25 @@
+from declarative_floorplan import Floorplan, HorizontalConstraint as HC, VerticalConstraint as VC
+
+with Floorplan("Analyzed Floorplan") as fp:
+    # Horizontal constraints (Y-coordinates)
+    h_0 = HC(0)
+    h_75 = HC(75)
+    h_150 = HC(150)
+    h_225 = HC(225)
+    h_300 = HC(300)
+    h_375 = HC(375)
+    h_450 = HC(450)
+    h_525 = HC(525)
+    h_600 = HC(600)
+
+    # Vertical constraints (X-coordinates)
+    v_0 = VC(0)
+    v_80 = VC(80)
+    v_160 = VC(160)
+    v_240 = VC(240)
+    v_320 = VC(320)
+    v_400 = VC(400)
+    v_480 = VC(480)
+    v_560 = VC(560)
+    v_640 = VC(640)
+    v_720 = VC(720)
