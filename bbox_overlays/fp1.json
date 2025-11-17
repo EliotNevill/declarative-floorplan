@@ -1,10 +1,5 @@
 [
-	{"bbox_2d": [0, 0, 999, 1000], "label": "wall"},
-	{"bbox_2d": [436, 227, 528, 252], "label": "window"},
-	{"bbox_2d": [609, 227, 698, 252], "label": "window"},
-	{"bbox_2d": [855, 227, 947, 252], "label": "window"},
-	{"bbox_2d": [102, 227, 193, 252], "label": "window"},
-	{"bbox_2d": [401, 559, 500, 692], "label": "door"},
-	{"bbox_2d": [544, 613, 633, 692], "label": "door"},
-	{"bbox_2d": [676, 558, 773, 692], "label": "door"}
+	{"bbox_2d": [407, 519, 536, 680], "label": "door"},
+	{"bbox_2d": [560, 440, 684, 594], "label": "door"},
+	{"bbox_2d": [522, 604, 647, 686], "label": "door"}
 ]

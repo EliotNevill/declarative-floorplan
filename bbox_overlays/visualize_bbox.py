@@ -84,7 +84,7 @@ def process_json_file(json_path: Path, bbox_dir: Path):
 
 def main():
     """Process all JSON files in the bbox directory."""
-    bbox_dir = Path('bbox')
+    bbox_dir = Path('bbox_overlays')
 
     if not bbox_dir.exists():
         print(f"Error: {bbox_dir} directory not found")
